@@ -6,8 +6,8 @@ export default function HomePage() {
         <h1 className="heroTitle">Welcome to Learnify</h1>
         <p className="heroSubtitle">Engage, Evolve, Excel!</p>
         <div className="heroActions">
-          <a href="/login?mode=signup" className="heroButton">Sign Up</a>
-          <a href="/login?mode=login" className="heroButton heroButtonSecondary">Log In</a>
+          <a href="/register" className="heroButton">Sign Up</a>
+          <a href="/login" className="heroButton heroButtonSecondary">Log In</a>
         </div>
       </section>
 

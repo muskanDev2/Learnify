@@ -141,3 +141,156 @@ h1, h2, h3 {
     padding: 1.5rem 1.2rem;
   }
 }
+
+.authPage {
+  max-width: 560px;
+  margin: 2rem auto;
+  padding: 0 0.5rem;
+}
+
+.authCard {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  padding: 1.6rem;
+}
+
+.authCard h2 {
+  margin-bottom: 0.4rem;
+  color: #0f172a;
+}
+
+.authSubtext {
+  margin-top: 0;
+  margin-bottom: 1.3rem;
+  color: #475569;
+}
+
+.authForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.authForm label {
+  font-weight: 600;
+  color: #1e293b;
+  margin-top: 0.4rem;
+}
+
+.authForm input,
+.authForm select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.68rem 0.8rem;
+  font-size: 0.96rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.authForm input:focus,
+.authForm select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.inputError {
+  border-color: #dc2626 !important;
+}
+
+.errorText {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #dc2626;
+}
+
+.hintText {
+  margin: -0.15rem 0 0.1rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.formError {
+  margin-top: 0.4rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+}
+
+.forgotPasswordLink {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  margin-bottom: 0.6rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.forgotPasswordLink:hover {
+  text-decoration: underline;
+}
+
+.authSubmitButton {
+  margin-top: 0.2rem;
+  border: none;
+  border-radius: 10px;
+  background-color: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.authSubmitButton:hover:not(:disabled) {
+  background-color: #1d4ed8;
+}
+
+.authSubmitButton:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.authSwitchText {
+  margin-top: 1rem;
+  color: #475569;
+}
+
+.authSwitchText a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.authSwitchText a:hover {
+  text-decoration: underline;
+}
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 30;
+}
+
+.lightboxCard {
+  width: min(440px, 100%);
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 1.2rem;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.18);
+}
+
+.lightboxCard h3 {
+  margin-bottom: 0.4rem;
+}
+
+.lightboxCard p {
+  margin: 0.4rem 0 1rem;
+}

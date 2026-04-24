@@ -1,31 +1,47 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  loginUser,
+  registerUser,
   validateEmail,
   validatePassword,
+  validateRequired,
 } from '../utils/authUtils';
 
-function getLoginErrors(formValues) {
-  return {
+const ROLE_OPTIONS = ['Admin', 'Instructor', 'Student'];
+
+function getRegisterErrors(formValues) {
+  const errors = {
+    name: validateRequired(formValues.name, 'Full name'),
     email: validateEmail(formValues.email),
     password: validatePassword(formValues.password),
+    confirmPassword: '',
+    role: validateRequired(formValues.role, 'Role'),
   };
+
+  if (!formValues.confirmPassword) {
+    errors.confirmPassword = 'Confirm password is required.';
+  } else if (formValues.password !== formValues.confirmPassword) {
+    errors.confirmPassword = 'Passwords do not match.';
+  }
+
+  return errors;
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [formValues, setFormValues] = useState({
+    name: '',
     email: '',
     password: '',
+    confirmPassword: '',
+    role: '',
   });
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [globalError, setGlobalError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [loggedInRole, setLoggedInRole] = useState('');
 
-  const errors = useMemo(() => getLoginErrors(formValues), [formValues]);
+  const errors = useMemo(() => getRegisterErrors(formValues), [formValues]);
   const isFormValid = Object.values(errors).every((error) => error === '');
 
   function handleChange(event) {
@@ -47,9 +63,10 @@ export default function LoginPage() {
     if (!isFormValid) return;
 
     setIsSubmitting(true);
-    // Simulate API request delay to show loading state.
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const result = loginUser(formValues);
+    // Simulate a basic API call delay for better UX feedback.
+    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    const result = registerUser(formValues);
     setIsSubmitting(false);
 
     if (!result.ok) {
@@ -57,9 +74,16 @@ export default function LoginPage() {
       return;
     }
 
-    localStorage.setItem('learnify_current_user', JSON.stringify(result.user));
-    setLoggedInRole(result.user.role);
     setSuccessMessage(result.message);
+    setFormValues({
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: '',
+    });
+    setTouched({});
+    setSubmitAttempted(false);
   }
 
   function shouldShowFieldError(fieldName) {
@@ -69,10 +93,23 @@ export default function LoginPage() {
   return (
     <section className="authPage">
       <div className="authCard">
-        <h2>Welcome back</h2>
-        <p className="authSubtext">Login to continue your learning journey.</p>
+        <h2>Create an account</h2>
+        <p className="authSubtext">Join Learnify to start your learning journey.</p>
 
         <form className="authForm" onSubmit={handleSubmit} noValidate>
+          <label htmlFor="name">Full Name</label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            value={formValues.name}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className={shouldShowFieldError('name') ? 'inputError' : ''}
+            placeholder="Enter your full name"
+          />
+          {shouldShowFieldError('name') && <p className="errorText">{errors.name}</p>}
+
           <label htmlFor="email">Email</label>
           <input
             id="email"
@@ -97,20 +134,51 @@ export default function LoginPage() {
             className={shouldShowFieldError('password') ? 'inputError' : ''}
             placeholder="Enter secure password"
           />
-          
+          <p className="hintText">Use 8+ chars with uppercase, lowercase, number, and symbol.</p>
           {shouldShowFieldError('password') && <p className="errorText">{errors.password}</p>}
 
-          <a href="#" className="forgotPasswordLink">Forgot password?</a>
+          <label htmlFor="confirmPassword">Confirm Password</label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            value={formValues.confirmPassword}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className={shouldShowFieldError('confirmPassword') ? 'inputError' : ''}
+            placeholder="Re-enter password"
+          />
+          {shouldShowFieldError('confirmPassword') && (
+            <p className="errorText">{errors.confirmPassword}</p>
+          )}
+
+          <label htmlFor="role">Role</label>
+          <select
+            id="role"
+            name="role"
+            value={formValues.role}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className={shouldShowFieldError('role') ? 'inputError' : ''}
+          >
+            <option value="">Select your role</option>
+            {ROLE_OPTIONS.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+          {shouldShowFieldError('role') && <p className="errorText">{errors.role}</p>}
 
           {globalError && <p className="errorText formError">{globalError}</p>}
 
           <button type="submit" className="authSubmitButton" disabled={!isFormValid || isSubmitting}>
-            {isSubmitting ? 'Logging in...' : 'Log In'}
+            {isSubmitting ? 'Creating account...' : 'Register'}
           </button>
         </form>
 
         <p className="authSwitchText">
-          New to Learnify? <Link to="/register">Sign Up</Link>
+          Already have an account? <Link to="/login">Log In</Link>
         </p>
       </div>
 
@@ -119,8 +187,7 @@ export default function LoginPage() {
           <div className="lightboxCard">
             <h3>Success</h3>
             <p>{successMessage}</p>
-            <p>You are now logged in as {loggedInRole}.</p>
-            <Link to="/dashboard" className="heroButton">Go to Dashboard</Link>
+            <Link to="/login" className="heroButton">Go to Login</Link>
           </div>
         </div>
       )}
