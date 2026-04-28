@@ -180,7 +180,8 @@ h1, h2, h3 {
 }
 
 .authForm input,
-.authForm select {
+.authForm select,
+.authForm textarea {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 0.68rem 0.8rem;
@@ -190,7 +191,8 @@ h1, h2, h3 {
 }
 
 .authForm input:focus,
-.authForm select:focus {
+.authForm select:focus,
+.authForm textarea:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
@@ -293,4 +295,835 @@ h1, h2, h3 {
 
 .lightboxCard p {
   margin: 0.4rem 0 1rem;
+}
+
+.dashboardShell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1rem;
+  min-height: 70vh;
+}
+
+.dashboardSidebar {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.dashboardSidebarTitle {
+  margin: 0 0 0.9rem;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.dashboardSidebarNav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboardMenuButton {
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  color: #334155;
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.dashboardMenuButton:hover {
+  background-color: #eff6ff;
+}
+
+.dashboardMenuButtonActive {
+  background-color: #dbeafe;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.dashboardMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dashboardHeader {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.dashboardWelcome {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.dashboardHeader h2 {
+  margin: 0.2rem 0 0;
+  color: #0f172a;
+  font-size: 1.45rem;
+}
+
+.dashboardRoleBadge {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.dashboardContent {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem;
+  min-height: 300px;
+}
+
+.dashboardPanel h3 {
+  margin-bottom: 0.6rem;
+  color: #0f172a;
+}
+
+.dashboardPanel p {
+  margin: 0;
+  color: #475569;
+}
+
+.dashboardSection {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+
+.dashboardSectionHeader {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1rem 0.8rem;
+}
+
+.dashboardSectionHeader h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.25rem;
+}
+
+.dashboardSectionHeader p {
+  margin: 0.45rem 0 0;
+  color: #334155;
+  font-size: 0.98rem;
+}
+
+.dashboardSectionContent {
+  padding: 1rem;
+}
+
+.dashboardQuickGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.dashboardCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.85rem;
+  background-color: #f8fafc;
+}
+
+.dashboardCard h4 {
+  margin: 0 0 0.3rem;
+  color: #1e293b;
+  font-size: 0.98rem;
+}
+
+.dashboardCardValue {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.dashboardCardDescription {
+  display: block;
+  margin-top: 0.35rem;
+  color: #475569;
+  font-size: 0.88rem;
+}
+
+.dashboardQuickLinks {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.dashboardLinkButton {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  padding: 0.5rem 0.8rem;
+  cursor: pointer;
+}
+
+.dashboardLinkButton:hover {
+  background-color: #dbeafe;
+}
+
+.dashboardAnnouncements {
+  margin-top: 0.95rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #f8fafc;
+  padding: 0.85rem;
+}
+
+.dashboardAnnouncements h4 {
+  margin: 0 0 0.45rem;
+  color: #1e293b;
+}
+
+.dashboardAnnouncements ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: #334155;
+  font-size: 0.96rem;
+}
+
+.dashboardAnnouncements li + li {
+  margin-top: 0.35rem;
+}
+
+.dashboardFeedback {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background-color: #f8fafc;
+  color: #334155;
+  padding: 1rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.profilePage {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.profileCard {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  padding: 1.2rem;
+}
+
+.profileHeader {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1.2rem;
+  align-items: center;
+}
+
+.profileAvatarWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  align-items: center;
+  position: relative;
+}
+
+.profileAvatarImage,
+.profileAvatarMonogram {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+}
+
+.profileAvatarImage {
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+}
+
+.profileAvatarMonogram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(140deg, #dbeafe, #bfdbfe);
+  color: #1e3a8a;
+  font-weight: 800;
+  font-size: 1.8rem;
+}
+
+.profileUploadButton {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.profileUploadButton:hover {
+  text-decoration: underline;
+}
+
+.profileAvatarButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.profilePhotoPopup {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+  padding: 0.6rem 0.75rem;
+  min-width: 170px;
+  text-align: center;
+  animation: profilePopIn 0.2s ease-out;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.profilePhotoPopupButton {
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.profilePhotoPopupButton:hover:not(:disabled) {
+  background-color: #dbeafe;
+}
+
+.profilePhotoPopupButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profilePhotoUploadLabel {
+  display: block;
+  text-decoration: none;
+}
+
+.profilePhotoPreviewCard {
+  width: min(420px, 100%);
+}
+
+.profilePhotoPreviewImage {
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.profileHeaderInfo h2 {
+  margin-bottom: 0.3rem;
+}
+
+.profileHeaderInfo p {
+  margin: 0;
+  color: #475569;
+}
+
+.profileToastMessage {
+  margin: 0 0 0.85rem;
+  background-color: #e8f7ec;
+  border: 1px solid #b8e6c2;
+  border-radius: 10px;
+  padding: 0.62rem 0.8rem;
+  color: #1f7a35;
+  font-weight: 600;
+}
+
+.profileDetailsGrid {
+  margin-top: 1.1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.profileDetailItem {
+  padding: 0.25rem 0;
+}
+
+.profileDetailItem h4 {
+  margin: 0 0 0.25rem;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.profileDetailItem p {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.profileDeleteCard {
+  width: min(460px, 100%);
+  border-color: #fecaca;
+}
+
+.profileDeleteCard h3 {
+  color: #b91c1c;
+}
+
+@keyframes profilePopIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.profileModalCard {
+  width: min(720px, 100%);
+}
+
+.profileModalCard label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.profileModalCard input,
+.profileModalCard select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.62rem 0.74rem;
+}
+
+.profileModalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.profileReadonlyValue {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  color: #0f172a;
+  padding: 0.62rem 0.74rem;
+  font-weight: 600;
+}
+
+.profileGenderRow {
+  margin-top: 0.9rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.profileGenderRow span {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.profileGenderRow label {
+  margin: 0;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.profileModalActions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.profileActionsInline {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.profilePrimaryButton,
+.profileDangerButton {
+  border-radius: 10px;
+  padding: 0.64rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.profilePrimaryButton {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.profilePrimaryButton:hover {
+  background-color: #1d4ed8;
+}
+
+.profileDangerButton {
+  background-color: #ffffff;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.profileDangerButton:hover {
+  background-color: #fff1f2;
+}
+
+.myCoursesSection h2 {
+  margin-bottom: 0.2rem;
+}
+
+.myCoursesSection h3 {
+  margin: 0;
+  color: #334155;
+  font-size: 1.4rem;
+}
+
+.myCoursesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.8rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.myCoursesFilters {
+  display: grid;
+  grid-template-columns: 90px minmax(180px, 1fr) minmax(170px, 220px) 90px;
+  gap: 0.5rem;
+  margin: 0.85rem 0 1rem;
+}
+
+.myCoursesFilters select,
+.myCoursesFilters input {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.58rem 0.7rem;
+  font-size: 0.95rem;
+}
+
+.myCoursesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.myCoursesList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+}
+
+.myCoursesEmptyState {
+  border: 1px dashed #bfdbfe;
+  border-radius: 10px;
+  background-color: #eff6ff;
+  color: #1e3a8a;
+  padding: 1rem;
+  font-size: 0.95rem;
+}
+
+.courseContentManager {
+  margin-top: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
+  padding: 1rem;
+}
+
+.courseContentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.courseContentHeader h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.courseContentStats {
+  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.courseContentStats article {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #f8fafc;
+  padding: 0.7rem;
+}
+
+.courseContentStats h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #334155;
+}
+
+.courseContentStats p {
+  margin: 0.2rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.courseModuleAddRow {
+  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+}
+
+.courseModuleAddRow input {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.62rem 0.72rem;
+}
+
+.courseModulesList {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.courseModuleCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #ffffff;
+  padding: 0.8rem;
+}
+
+.courseModuleCard header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.courseModuleCard h4 {
+  margin: 0;
+}
+
+.courseModuleCard header button {
+  border: 1px solid #fecaca;
+  background-color: #fff1f2;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+}
+
+.courseEmptyModuleText {
+  margin: 0.65rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.courseMaterialRow {
+  margin-top: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  padding: 0.6rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.courseMaterialRow strong {
+  color: #0f172a;
+}
+
+.courseMaterialRow p {
+  margin: 0.25rem 0;
+  color: #334155;
+  font-size: 0.84rem;
+}
+
+.courseMaterialRow small {
+  color: #64748b;
+}
+
+.courseMaterialActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.courseMaterialActions button {
+  border: 1px solid #dbeafe;
+  border-radius: 7px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+}
+
+.courseMaterialActions button:last-child {
+  border-color: #fecaca;
+  background-color: #fff1f2;
+  color: #b91c1c;
+}
+
+.courseUploadBox {
+  margin-top: 0.9rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.85rem;
+}
+
+.courseUploadBox h4 {
+  margin: 0 0 0.55rem;
+}
+
+.myCourseCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.myCourseImage {
+  height: 112px;
+}
+
+.courseImageBlue {
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
+}
+
+.courseImageSilver {
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+}
+
+.myCourseBody {
+  padding: 0.75rem;
+}
+
+.myCourseBody h4 {
+  margin: 0 0 0.22rem;
+  color: #1d4ed8;
+  font-size: 1.06rem;
+}
+
+.myCourseBody p {
+  margin: 0 0 0.2rem;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.myCourseBody small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #64748b;
+}
+
+.myCourseActions {
+  border-top: 1px solid #e2e8f0;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.myCourseActions button {
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+}
+
+.myCourseActions button:last-child {
+  border-color: #fecaca;
+  background-color: #fff1f2;
+  color: #b91c1c;
+}
+
+.courseDeleteCard {
+  width: min(460px, 100%);
+  border-color: #fecaca;
+}
+
+.courseDeleteCard h3 {
+  color: #991b1b;
+}
+
+@media (max-width: 900px) {
+  .dashboardShell {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardQuickGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .profileHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .profileDetailsGrid,
+  .profileModalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .myCoursesFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .myCoursesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .courseContentStats {
+    grid-template-columns: 1fr;
+  }
+
+  .courseModuleAddRow {
+    grid-template-columns: 1fr;
+  }
+
+  .courseMaterialRow {
+    flex-direction: column;
+  }
+
+  .courseMaterialActions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }

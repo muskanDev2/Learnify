@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   loginUser,
   validateEmail,
@@ -14,6 +14,7 @@ function getLoginErrors(formValues) {
 }
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [formValues, setFormValues] = useState({
     email: '',
     password: '',
@@ -22,8 +23,6 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [globalError, setGlobalError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [loggedInRole, setLoggedInRole] = useState('');
 
   const errors = useMemo(() => getLoginErrors(formValues), [formValues]);
   const isFormValid = Object.values(errors).every((error) => error === '');
@@ -42,7 +41,6 @@ export default function LoginPage() {
     event.preventDefault();
     setSubmitAttempted(true);
     setGlobalError('');
-    setSuccessMessage('');
 
     if (!isFormValid) return;
 
@@ -58,8 +56,7 @@ export default function LoginPage() {
     }
 
     localStorage.setItem('learnify_current_user', JSON.stringify(result.user));
-    setLoggedInRole(result.user.role);
-    setSuccessMessage(result.message);
+    navigate('/dashboard', { replace: true });
   }
 
   function shouldShowFieldError(fieldName) {
@@ -113,17 +110,6 @@ export default function LoginPage() {
           New to Learnify? <Link to="/register">Sign Up</Link>
         </p>
       </div>
-
-      {successMessage && (
-        <div className="lightboxOverlay" role="alertdialog" aria-live="polite">
-          <div className="lightboxCard">
-            <h3>Success</h3>
-            <p>{successMessage}</p>
-            <p>You are now logged in as {loggedInRole}.</p>
-            <Link to="/dashboard" className="heroButton">Go to Dashboard</Link>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

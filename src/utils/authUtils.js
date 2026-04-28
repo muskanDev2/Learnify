@@ -1,4 +1,5 @@
 const USERS_KEY = 'learnify_users';
+const CURRENT_USER_KEY = 'learnify_current_user';
 
 // Basic reusable validators for form fields.
 export function validateEmail(email) {
@@ -43,6 +44,7 @@ function setStoredUsers(users) {
 }
 
 export function registerUser(userData) {
+  // Prevent duplicate account creation by email.
   const users = getStoredUsers();
   const duplicateUser = users.find(
     (user) => user.email.toLowerCase() === userData.email.toLowerCase(),
@@ -64,6 +66,7 @@ export function registerUser(userData) {
 }
 
 export function loginUser(loginData) {
+  // Basic temporary auth: match user from localStorage list.
   const users = getStoredUsers();
   const matchedUser = users.find(
     (user) =>
@@ -76,4 +79,38 @@ export function loginUser(loginData) {
   }
 
   return { ok: true, user: matchedUser, message: 'Login successful!' };
+}
+
+export function getCurrentUser() {
+  const rawUser = localStorage.getItem(CURRENT_USER_KEY);
+  if (!rawUser) return null;
+
+  try {
+    return JSON.parse(rawUser);
+  } catch {
+    return null;
+  }
+}
+
+export function setCurrentUser(user) {
+  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+}
+
+export function updateCurrentUserProfile(profileUpdates) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    return { ok: false, message: 'No active user found.' };
+  }
+
+  const updatedUser = { ...currentUser, ...profileUpdates };
+  setCurrentUser(updatedUser);
+
+  // Keep users list in sync using email as unique key.
+  const users = getStoredUsers();
+  const updatedUsers = users.map((user) =>
+    user.email.toLowerCase() === updatedUser.email.toLowerCase() ? updatedUser : user,
+  );
+  setStoredUsers(updatedUsers);
+
+  return { ok: true, user: updatedUser };
 }
