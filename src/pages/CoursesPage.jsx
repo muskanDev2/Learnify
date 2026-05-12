@@ -20,7 +20,17 @@ function getStoredCourses() {
 
   try {
     const parsed = JSON.parse(rawCourses);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    // Deduplicate by ID to clean up any existing corruption from previous bugs
+    const uniqueMap = new Map();
+    parsed.forEach((course) => {
+      if (course && course.id) {
+        // Keep the latest version if duplicates exist
+        uniqueMap.set(course.id, course);
+      }
+    });
+    return Array.from(uniqueMap.values());
   } catch {
     return [];
   }
@@ -467,29 +477,14 @@ function CoursesPage() {
   }, [selectedContentFileId, selectedContentItem]);
 
   function persistInstructorCourses(updatedCourses) {
-    const otherUsersCourses = getStoredCourses().filter((course) => {
-      const owner = (course.ownerEmail || '').toLowerCase();
-      return owner !== userEmail;
-    });
-    const dedupeKey = (course) =>
-      [
-        (course.ownerEmail || '').toLowerCase(),
-        course.title || '',
-        course.subtitle || '',
-        course.description || '',
-        course.category || '',
-        course.enrollmentKey || '',
-      ].join('|');
+    const allStored = getStoredCourses();
+    const updatedIds = new Set((updatedCourses || []).map((c) => c.id));
 
-    const seen = new Set();
-    const uniqueInstructorCourses = (updatedCourses || []).filter((course) => {
-      const key = dedupeKey(course);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // Keep all courses that were NOT in the updated batch
+    const otherCourses = allStored.filter((c) => !updatedIds.has(c.id));
 
-    saveStoredCourses([...otherUsersCourses, ...uniqueInstructorCourses]);
+    // Combine them. This ensures updatedCourses replace their old versions by ID.
+    saveStoredCourses([...otherCourses, ...(updatedCourses || [])]);
   }
 
   function updateInstructorCourses(updater) {
@@ -1533,8 +1528,8 @@ function CoursesPage() {
             <>
               <div className="coursesPageHeader">
                 <div>
-                  <h2>{selectedCourse.title}</h2>
-                  <p>{selectedCourse.description}</p>
+                  <h2>{selectedCourse?.title || 'Untitled Course'}</h2>
+                  <p>{selectedCourse?.description || 'No description available.'}</p>
                 </div>
                 <button
                   type="button"
@@ -2355,8 +2350,8 @@ function CoursesPage() {
             <>
               <div className="coursesPageHeader">
                 <div>
-                  <h2>{selectedCourse.title}</h2>
-                  <p>{selectedCourse.description}</p>
+                  <h2>{selectedCourse?.title || 'Untitled Course'}</h2>
+                  <p>{selectedCourse?.description || 'No description available.'}</p>
                 </div>
                 <button
                   type="button"
@@ -2370,15 +2365,15 @@ function CoursesPage() {
               <div className="courseContentStats">
                 <article>
                   <h4>Modules</h4>
-                  <p>{selectedCourse.modules.length}</p>
+                  <p>{selectedCourse?.modules?.length || 0}</p>
                 </article>
                 <article>
                   <h4>Total Items</h4>
-                  <p>{selectedCourse.modules.reduce((sum, module) => sum + module.items.length, 0)}</p>
+                  <p>{selectedCourse?.modules?.reduce((sum, module) => sum + (module.items?.length || 0), 0) || 0}</p>
                 </article>
                 <article>
                   <h4>Progress</h4>
-                  <p>{getCourseProgress(selectedCourse)}%</p>
+                  <p>{selectedCourse ? getCourseProgress(selectedCourse) : 0}%</p>
                 </article>
               </div>
 
