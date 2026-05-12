@@ -4,6 +4,7 @@ export default function DashboardLayout({
   menuItems,
   activeMenu,
   onMenuClick,
+  showHeader = true,
   children,
 }) {
   return (
@@ -26,14 +27,16 @@ export default function DashboardLayout({
       </aside>
 
       <div className="dashboardMain">
-        {/* Shared top area keeps role + welcome consistent across dashboards. */}
-        <header className="dashboardHeader">
-          <div>
-            <p className="dashboardWelcome">Welcome, {userName}</p>
-            <h2>Learnify Dashboard</h2>
-          </div>
-          <span className="dashboardRoleBadge">{role}</span>
-        </header>
+        {/* Shared top area stays reusable, but can be hidden for focused panels like My Courses. */}
+        {showHeader && (
+          <header className="dashboardHeader">
+            <div>
+              <p className="dashboardWelcome">Welcome, {userName}</p>
+              <h2>Learnify Dashboard</h2>
+            </div>
+            <span className="dashboardRoleBadge">{role}</span>
+          </header>
+        )}
 
         <main className="dashboardContent">{children}</main>
       </div>

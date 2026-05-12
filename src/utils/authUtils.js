@@ -1,5 +1,28 @@
 const USERS_KEY = 'learnify_users';
 const CURRENT_USER_KEY = 'learnify_current_user';
+const TEST_ADMIN_USER = {
+  name: 'Learnify Admin',
+  email: 'admin@learnify.test',
+  password: 'Admin@123',
+  role: 'admin',
+  active: true,
+};
+
+export function getCurrentRole(user = getCurrentUser()) {
+  return String(user?.role || '').toLowerCase();
+}
+
+export function isAdmin(user = getCurrentUser()) {
+  return getCurrentRole(user) === 'admin';
+}
+
+export function isInstructor(user = getCurrentUser()) {
+  return getCurrentRole(user) === 'instructor';
+}
+
+export function isStudent(user = getCurrentUser()) {
+  return getCurrentRole(user) === 'student';
+}
 
 // Basic reusable validators for form fields.
 export function validateEmail(email) {
@@ -29,18 +52,53 @@ export function validateRequired(value, label) {
 
 export function getStoredUsers() {
   const rawUsers = localStorage.getItem(USERS_KEY);
-  if (!rawUsers) return [];
+  if (!rawUsers) {
+    const seededUsers = ensureAdminSeed([]);
+    return seededUsers;
+  }
 
   try {
     const users = JSON.parse(rawUsers);
-    return Array.isArray(users) ? users : [];
+    return ensureAdminSeed(Array.isArray(users) ? users : []);
   } catch {
-    return [];
+    return ensureAdminSeed([]);
   }
 }
 
 function setStoredUsers(users) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function ensureAdminSeed(users) {
+  const safeUsers = normalizeUsersWithDefaultActive(Array.isArray(users) ? users : []);
+  const hasAdmin = safeUsers.some((user) => isAdmin(user));
+  if (hasAdmin) {
+    return safeUsers;
+  }
+
+  const seedEmailTaken = safeUsers.some(
+    (user) => (user.email || '').toLowerCase() === TEST_ADMIN_USER.email.toLowerCase(),
+  );
+  const seedUser = seedEmailTaken
+    ? { ...TEST_ADMIN_USER, email: 'admin-seed@learnify.test' }
+    : TEST_ADMIN_USER;
+
+  const nextUsers = [...safeUsers, seedUser];
+  setStoredUsers(nextUsers);
+  return nextUsers;
+}
+
+function normalizeUsersWithDefaultActive(users) {
+  const normalized = users.map((user) => ({
+    ...user,
+    active: user.active !== false,
+  }));
+
+  const changed = users.some((user, index) => user.active !== normalized[index].active);
+  if (changed) {
+    setStoredUsers(normalized);
+  }
+  return normalized;
 }
 
 export function registerUser(userData) {
@@ -59,6 +117,7 @@ export function registerUser(userData) {
     email: userData.email.trim().toLowerCase(),
     password: userData.password,
     role: userData.role,
+    active: true,
   };
 
   setStoredUsers([...users, userToSave]);
@@ -76,6 +135,10 @@ export function loginUser(loginData) {
 
   if (!matchedUser) {
     return { ok: false, message: 'Invalid email or password.' };
+  }
+
+  if (matchedUser.active === false) {
+    return { ok: false, message: 'Your account is deactivated. Contact admin.' };
   }
 
   return { ok: true, user: matchedUser, message: 'Login successful!' };

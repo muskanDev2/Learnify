@@ -84,21 +84,6 @@
   background-color: #dbeafe;
 }
 
-.createCourseButton {
-  text-decoration: none;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  background-color: #2563eb;
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 0.45rem 0.8rem;
-}
-
-.createCourseButton:hover {
-  background-color: #1d4ed8;
-}
-
 .iconCircle {
   position: relative;
   width: 40px;

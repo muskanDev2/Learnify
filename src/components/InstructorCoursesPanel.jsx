@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/authUtils';
 
 const COURSES_KEY = 'learnify_courses';
@@ -24,20 +25,22 @@ function getNextId(items) {
 }
 
 function buildStarterModules() {
-  return [
-    { id: 1, title: 'General', materials: [] },
-    { id: 2, title: 'Introduction', materials: [] },
-  ];
+  // Requirement: create a default module named "General" on course creation.
+  return [{ id: 1, title: 'General', items: [] }];
 }
 
-function getCourseProgress(course) {
-  const allMaterials = course.modules.flatMap((module) => module.materials);
-  if (allMaterials.length === 0) return 0;
-  const deliveredCount = allMaterials.filter((material) => material.isDelivered).length;
-  return Math.round((deliveredCount / allMaterials.length) * 100);
+function normalizeModules(modules) {
+  if (!Array.isArray(modules) || modules.length === 0) return buildStarterModules();
+
+  return modules.map((module) => ({
+    id: module.id,
+    title: module.title || 'Untitled module',
+    items: Array.isArray(module.items) ? module.items : [],
+  }));
 }
 
 export default function InstructorCoursesPanel() {
+  const navigate = useNavigate();
   const currentUser = getCurrentUser();
   const instructorName = currentUser?.name || 'Instructor';
   const instructorEmail = (currentUser?.email || '').toLowerCase();
@@ -46,7 +49,7 @@ export default function InstructorCoursesPanel() {
       .filter((course) => course.ownerEmail === instructorEmail)
       .map((course) => ({
         ...course,
-        modules: course.modules || buildStarterModules(),
+        modules: normalizeModules(course.modules),
       })),
   );
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,21 +59,13 @@ export default function InstructorCoursesPanel() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingCourseId, setDeletingCourseId] = useState(null);
   const [editingCourseId, setEditingCourseId] = useState(null);
-  const [selectedCourseId, setSelectedCourseId] = useState(null);
-  const [newModuleTitle, setNewModuleTitle] = useState('');
-  const [materialForm, setMaterialForm] = useState({
-    moduleId: '',
-    title: '',
-    type: 'video',
-    link: '',
-    fileName: '',
-  });
   const [courseForm, setCourseForm] = useState({
     title: '',
     subtitle: '',
     description: '',
     instructor: instructorName,
     category: '',
+    enrollmentKey: '',
   });
 
   const filteredCourses = useMemo(() => {
@@ -82,7 +77,26 @@ export default function InstructorCoursesPanel() {
       categoryFilter === 'All' ? true : course.category === categoryFilter,
     );
 
-    return [...categorized].sort((a, b) => {
+    // Hide already-duplicated identical courses in the UI (safe for beginner demo).
+    const dedupeKey = (course) =>
+      [
+        (course.ownerEmail || '').toLowerCase(),
+        course.title || '',
+        course.subtitle || '',
+        course.description || '',
+        course.category || '',
+        course.enrollmentKey || '',
+      ].join('|');
+
+    const seen = new Set();
+    const uniqueCategorized = categorized.filter((course) => {
+      const key = dedupeKey(course);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return [...uniqueCategorized].sort((a, b) => {
       if (sortBy === 'name') {
         return a.title.localeCompare(b.title);
       }
@@ -90,13 +104,32 @@ export default function InstructorCoursesPanel() {
     });
   }, [courses, searchTerm, categoryFilter, sortBy]);
 
-  const selectedCourse = courses.find((course) => course.id === selectedCourseId) || null;
-
   function persistInstructorCourses(updatedCourses) {
-    const otherUsersCourses = getStoredCourses().filter(
-      (course) => course.ownerEmail !== instructorEmail,
-    );
-    saveStoredCourses([...otherUsersCourses, ...updatedCourses]);
+    const otherUsersCourses = getStoredCourses().filter((course) => {
+      const owner = (course.ownerEmail || '').toLowerCase();
+      return owner !== instructorEmail;
+    });
+
+    // Avoid re-saving duplicates for this instructor.
+    const dedupeKey = (course) =>
+      [
+        (course.ownerEmail || '').toLowerCase(),
+        course.title || '',
+        course.subtitle || '',
+        course.description || '',
+        course.category || '',
+        course.enrollmentKey || '',
+      ].join('|');
+
+    const seen = new Set();
+    const uniqueInstructorCourses = (updatedCourses || []).filter((course) => {
+      const key = dedupeKey(course);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    saveStoredCourses([...otherUsersCourses, ...uniqueInstructorCourses]);
   }
 
   function updateInstructorCourses(updater) {
@@ -115,6 +148,7 @@ export default function InstructorCoursesPanel() {
       description: '',
       instructor: instructorName,
       category: '',
+      enrollmentKey: '',
     });
     setIsModalOpen(true);
   }
@@ -127,6 +161,7 @@ export default function InstructorCoursesPanel() {
       description: course.description || '',
       instructor: course.instructor || instructorName,
       category: course.category,
+      enrollmentKey: course.enrollmentKey || '',
     });
     setIsModalOpen(true);
   }
@@ -170,6 +205,7 @@ export default function InstructorCoursesPanel() {
           description: courseForm.description.trim(),
           instructor: instructorName,
           category: courseForm.category.trim(),
+          enrollmentKey: courseForm.enrollmentKey.trim(),
           imageClass: 'courseImageBlue',
           lastAccessed: new Date().toISOString().slice(0, 10),
           ownerEmail: instructorEmail,
@@ -193,148 +229,11 @@ export default function InstructorCoursesPanel() {
       const updatedCourses = prev.filter((course) => course.id !== deletingCourseId);
       return updatedCourses;
     });
-    if (selectedCourseId === deletingCourseId) {
-      setSelectedCourseId(null);
-    }
     setDeletingCourseId(null);
   }
 
   function openContentManager(courseId) {
-    setSelectedCourseId(courseId);
-    const course = courses.find((item) => item.id === courseId);
-    const defaultModuleId = course?.modules?.[0]?.id || '';
-    setMaterialForm({
-      moduleId: defaultModuleId,
-      title: '',
-      type: 'video',
-      link: '',
-      fileName: '',
-    });
-  }
-
-  function handleAddModule() {
-    if (!selectedCourse || !newModuleTitle.trim()) return;
-
-    updateInstructorCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== selectedCourse.id) return course;
-        const nextModuleId = getNextId(course.modules);
-        return {
-          ...course,
-          modules: [...course.modules, { id: nextModuleId, title: newModuleTitle.trim(), materials: [] }],
-        };
-      }),
-    );
-
-    setNewModuleTitle('');
-  }
-
-  function handleDeleteModule(moduleId) {
-    if (!selectedCourse) return;
-
-    updateInstructorCourses((prev) =>
-      prev.map((course) =>
-        course.id === selectedCourse.id
-          ? { ...course, modules: course.modules.filter((module) => module.id !== moduleId) }
-          : course,
-      ),
-    );
-  }
-
-  function handleMaterialFormChange(event) {
-    const { name, value } = event.target;
-    setMaterialForm((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function handleMaterialFileChange(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setMaterialForm((prev) => ({ ...prev, fileName: file.name }));
-  }
-
-  function handleUploadMaterial() {
-    if (!selectedCourse || !materialForm.moduleId || !materialForm.title.trim()) return;
-
-    updateInstructorCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== selectedCourse.id) return course;
-
-        const updatedModules = course.modules.map((module) => {
-          if (module.id !== Number(materialForm.moduleId)) return module;
-          const nextMaterialId = getNextId(module.materials);
-
-          return {
-            ...module,
-            materials: [
-              ...module.materials,
-              {
-                id: nextMaterialId,
-                title: materialForm.title.trim(),
-                type: materialForm.type,
-                link: materialForm.link.trim(),
-                fileName: materialForm.fileName,
-                isDelivered: false,
-              },
-            ],
-          };
-        });
-
-        return { ...course, modules: updatedModules };
-      }),
-    );
-
-    setMaterialForm((prev) => ({
-      ...prev,
-      title: '',
-      link: '',
-      fileName: '',
-    }));
-  }
-
-  function toggleMaterialDelivered(moduleId, materialId) {
-    if (!selectedCourse) return;
-
-    updateInstructorCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== selectedCourse.id) return course;
-
-        const updatedModules = course.modules.map((module) => {
-          if (module.id !== moduleId) return module;
-
-          return {
-            ...module,
-            materials: module.materials.map((material) =>
-              material.id === materialId
-                ? { ...material, isDelivered: !material.isDelivered }
-                : material,
-            ),
-          };
-        });
-
-        return { ...course, modules: updatedModules };
-      }),
-    );
-  }
-
-  function deleteMaterial(moduleId, materialId) {
-    if (!selectedCourse) return;
-
-    updateInstructorCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== selectedCourse.id) return course;
-
-        const updatedModules = course.modules.map((module) =>
-          module.id === moduleId
-            ? {
-                ...module,
-                materials: module.materials.filter((material) => material.id !== materialId),
-              }
-            : module,
-        );
-
-        return { ...course, modules: updatedModules };
-      }),
-    );
+    navigate('/courses', { state: { courseId } });
   }
 
   return (
@@ -390,11 +289,14 @@ export default function InstructorCoursesPanel() {
                 <small>{course.description}</small>
                 <small>Instructor: {course.instructor}</small>
                 <small>{course.category}</small>
+                <small>
+                  Enrollment: {course.enrollmentKey ? 'Protected' : 'Public'}
+                </small>
               </div>
               <div className="myCourseActions">
-              <button type="button" onClick={() => openContentManager(course.id)}>
-                Manage Content
-              </button>
+                <button type="button" onClick={() => openContentManager(course.id)}>
+                  Manage Content
+                </button>
                 <button type="button" onClick={() => openEditModal(course)}>Edit</button>
                 <button type="button" onClick={() => handleDeleteCourse(course.id)}>Delete</button>
               </div>
@@ -402,143 +304,6 @@ export default function InstructorCoursesPanel() {
           ))
         )}
       </div>
-
-      {selectedCourse && (
-        <section className="courseContentManager">
-          <div className="courseContentHeader">
-            <h3>{selectedCourse.title} - Content Delivery</h3>
-            <span className="dashboardRoleBadge">
-              Progress {getCourseProgress(selectedCourse)}%
-            </span>
-          </div>
-
-          <div className="courseContentStats">
-            <article>
-              <h4>Modules</h4>
-              <p>{selectedCourse.modules.length}</p>
-            </article>
-            <article>
-              <h4>Total Materials</h4>
-              <p>{selectedCourse.modules.reduce((sum, module) => sum + module.materials.length, 0)}</p>
-            </article>
-            <article>
-              <h4>Delivered</h4>
-              <p>
-                {
-                  selectedCourse.modules
-                    .flatMap((module) => module.materials)
-                    .filter((material) => material.isDelivered).length
-                }
-              </p>
-            </article>
-          </div>
-
-          <div className="courseModuleAddRow">
-            <input
-              type="text"
-              placeholder="Add new module (for example: Week 1, Introduction)"
-              value={newModuleTitle}
-              onChange={(event) => setNewModuleTitle(event.target.value)}
-            />
-            <button type="button" className="profilePrimaryButton" onClick={handleAddModule}>
-              Add Module
-            </button>
-          </div>
-
-          <div className="courseModulesList">
-            {selectedCourse.modules.map((module) => (
-              <article key={module.id} className="courseModuleCard">
-                <header>
-                  <h4>{module.title}</h4>
-                  <button type="button" onClick={() => handleDeleteModule(module.id)}>Delete Module</button>
-                </header>
-
-                {module.materials.length === 0 ? (
-                  <p className="courseEmptyModuleText">No materials uploaded in this module yet.</p>
-                ) : (
-                  module.materials.map((material) => (
-                    <div key={material.id} className="courseMaterialRow">
-                      <div>
-                        <strong>{material.title}</strong>
-                        <p>{material.type.toUpperCase()}</p>
-                        {material.fileName && <small>File: {material.fileName}</small>}
-                      </div>
-                      <div className="courseMaterialActions">
-                        <button type="button" onClick={() => toggleMaterialDelivered(module.id, material.id)}>
-                          {material.isDelivered ? 'Mark Pending' : 'Mark Delivered'}
-                        </button>
-                        <button type="button" onClick={() => deleteMaterial(module.id, material.id)}>
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </article>
-            ))}
-          </div>
-
-          <div className="courseUploadBox">
-            <h4>Upload Course Material</h4>
-            <div className="authForm">
-              <label htmlFor="material-module">Select Module</label>
-              <select
-                id="material-module"
-                name="moduleId"
-                value={materialForm.moduleId}
-                onChange={handleMaterialFormChange}
-              >
-                <option value="">Select module</option>
-                {selectedCourse.modules.map((module) => (
-                  <option key={module.id} value={module.id}>
-                    {module.title}
-                  </option>
-                ))}
-              </select>
-
-              <label htmlFor="material-title">Material Title</label>
-              <input
-                id="material-title"
-                name="title"
-                value={materialForm.title}
-                onChange={handleMaterialFormChange}
-                placeholder="Lecture 1, Quiz 1, Assignment 1..."
-              />
-
-              <label htmlFor="material-type">Material Type</label>
-              <select
-                id="material-type"
-                name="type"
-                value={materialForm.type}
-                onChange={handleMaterialFormChange}
-              >
-                <option value="video">Video lecture</option>
-                <option value="pdf">PDF / document</option>
-                <option value="quiz">Quiz</option>
-                <option value="assignment">Assignment</option>
-              </select>
-
-              <label htmlFor="material-link">Resource Link (optional)</label>
-              <input
-                id="material-link"
-                name="link"
-                value={materialForm.link}
-                onChange={handleMaterialFormChange}
-                placeholder="https://..."
-              />
-
-              <label htmlFor="material-file">Upload File (optional)</label>
-              <input id="material-file" type="file" onChange={handleMaterialFileChange} />
-            </div>
-
-            <div className="profileModalActions">
-              <button type="button" className="profilePrimaryButton" onClick={handleUploadMaterial}>
-                Upload Material
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
 
       {isModalOpen && (
         <div className="lightboxOverlay" role="dialog" aria-modal="true">
@@ -573,6 +338,15 @@ export default function InstructorCoursesPanel() {
                 onChange={handleFormChange}
                 rows={3}
                 placeholder="Write short course description..."
+              />
+
+              <label htmlFor="course-enrollment-key">Enrollment Key (optional)</label>
+              <input
+                id="course-enrollment-key"
+                name="enrollmentKey"
+                value={courseForm.enrollmentKey}
+                onChange={handleFormChange}
+                placeholder="Set key to protect enrollment (leave blank for Public)"
               />
 
               <label htmlFor="course-instructor">Instructor</label>

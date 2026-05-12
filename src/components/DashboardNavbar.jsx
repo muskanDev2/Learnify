@@ -13,7 +13,7 @@ import styles from './DashboardNavbar.module.css';
 function getCurrentUser() {
   try {
     const raw = localStorage.getItem('learnify_current_user');
-    if (!raw) return { name: 'Learner', initial: 'L', profileImage: '', role: 'student' };
+    if (!raw) return { name: 'Learner', initial: 'L', profileImage: '' };
     const user = JSON.parse(raw);
     const name = user.name?.trim() || 'Learner';
     const initial = name.charAt(0).toUpperCase();
@@ -21,10 +21,9 @@ function getCurrentUser() {
       name,
       initial,
       profileImage: user.profileImage || '',
-      role: (user.role || 'student').toLowerCase(),
     };
   } catch {
-    return { name: 'Learner', initial: 'L', profileImage: '', role: 'student' };
+    return { name: 'Learner', initial: 'L', profileImage: '' };
   }
 }
 
@@ -106,12 +105,6 @@ export default function DashboardNavbar() {
       </div>
 
       <div className={styles.right}>
-        {userInfo.role === 'instructor' && (
-          <Link to="/courses" className={styles.createCourseButton}>
-            Create Course
-          </Link>
-        )}
-
         {isProfilePage && (
           <Link to="/dashboard" className={styles.homeButton}>
             Home

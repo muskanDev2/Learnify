@@ -390,6 +390,28 @@ h1, h2, h3 {
   min-height: 300px;
 }
 
+.coursesPageContent {
+  min-height: 540px;
+}
+
+.coursesPageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.coursesPageHeader h2 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.coursesPageHeader p {
+  margin: 0.35rem 0 0;
+  color: #475569;
+  max-width: 760px;
+}
+
 .dashboardPanel h3 {
   margin-bottom: 0.6rem;
   color: #0f172a;
@@ -513,6 +535,83 @@ h1, h2, h3 {
   padding: 1rem;
   font-size: 0.98rem;
   font-weight: 600;
+}
+
+/* Dashboard analytics: readable defaults (HCI: hierarchy, contrast, whitespace) */
+.dashboardChartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.1rem;
+}
+
+.dashboardChartGrid > :only-child {
+  grid-column: 1 / -1;
+}
+
+.dashboardChartCard {
+  margin: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #f8fafc;
+  padding: 0.85rem 0.85rem 0.65rem;
+  min-height: 0;
+}
+
+.dashboardChartCardCaption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.dashboardChartCardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dashboardChartCardSubtitle {
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.dashboardChartPlot {
+  width: 100%;
+  height: 260px;
+}
+
+.dashboardChartFootnote {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.dashboardChartEmpty {
+  margin: 0;
+  padding: 2rem 0.75rem;
+  text-align: center;
+  font-size: 0.92rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.dashboardChartTooltip {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.dashboardChartTooltip strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #0f172a;
 }
 
 .profilePage {
@@ -818,11 +917,23 @@ h1, h2, h3 {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.studentCourseViewSwitch {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
 .myCoursesFilters {
   display: grid;
   grid-template-columns: 90px minmax(180px, 1fr) minmax(170px, 220px) 90px;
   gap: 0.5rem;
   margin: 0.85rem 0 1rem;
+}
+
+/* Single search row (e.g. student My Courses): avoid first 90px grid track squashing the field. */
+.myCoursesFiltersSearchOnly {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: min(100%, 28rem);
 }
 
 .myCoursesFilters select,
@@ -831,6 +942,9 @@ h1, h2, h3 {
   border-radius: 10px;
   padding: 0.58rem 0.7rem;
   font-size: 0.95rem;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .myCoursesGrid {
@@ -901,50 +1015,157 @@ h1, h2, h3 {
   color: #0f172a;
 }
 
-.courseModuleAddRow {
+.courseModuleToolbar {
   margin-top: 0.8rem;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.6rem;
 }
 
-.courseModuleAddRow input {
+.courseModuleToolbar input {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 0.62rem 0.72rem;
 }
 
+.courseSearchResults {
+  margin-top: 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
+  padding: 0.9rem;
+}
+
+.courseSearchResults h4 {
+  margin: 0 0 0.6rem;
+  color: #0f172a;
+}
+
+.courseSearchResultButton {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #f8fafc;
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.55rem;
+}
+
+.courseSearchResultButton strong {
+  color: #0f172a;
+}
+
+.courseSearchResultButton span {
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.courseModulesHeader {
+  margin-top: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.courseModulesHeader h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.courseTextButton {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .courseModulesList {
   margin-top: 0.9rem;
-  display: grid;
-  gap: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.courseAccordionModule {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.2rem 0;
+}
+
+.courseAccordionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.45rem 0;
+}
+
+.courseAccordionToggle {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.courseAccordionArrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #f1f5f9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  transition: transform 0.2s;
+}
+
+.courseAccordionArrowOpen {
+  transform: rotate(90deg);
+}
+
+.courseAccordionBody {
+  padding: 0.2rem 0 0.9rem 3rem;
+}
+
+.courseModuleHeaderActions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.courseModuleHeaderActions button {
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+}
+
+.courseModuleHeaderActions button:last-child {
+  border-color: #fecaca;
+  background-color: #fff1f2;
+  color: #b91c1c;
 }
 
 .courseModuleCard {
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 16px;
   background-color: #ffffff;
-  padding: 0.8rem;
-}
-
-.courseModuleCard header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.courseModuleCard h4 {
-  margin: 0;
-}
-
-.courseModuleCard header button {
-  border: 1px solid #fecaca;
-  background-color: #fff1f2;
-  color: #b91c1c;
-  border-radius: 8px;
-  padding: 0.35rem 0.55rem;
-  cursor: pointer;
+  padding: 0.2rem 0;
 }
 
 .courseEmptyModuleText {
@@ -968,6 +1189,136 @@ h1, h2, h3 {
   color: #0f172a;
 }
 
+.courseContentLink {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #2563eb;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.courseContentLink:hover {
+  text-decoration: underline;
+}
+
+.courseItemCard {
+  margin-top: 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background-color: #ffffff;
+  padding: 0.75rem 0.85rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.courseItemIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.courseItemIconCONTENT {
+  background-color: #2563eb;
+}
+
+.courseItemIconASSIGNMENT {
+  background-color: #ec4899;
+}
+
+.courseItemIconQUIZ {
+  background-color: #7c3aed;
+}
+
+.courseItemMain {
+  min-width: 0;
+}
+
+.courseItemTopRow {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.courseItemTitle {
+  color: #0f172a;
+}
+
+.courseItemMetaBadge {
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 400;
+  flex-shrink: 0;
+}
+
+.courseItemMetaLines {
+  margin-top: 0.35rem;
+  color: #475569;
+  font-size: 0.86rem;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.courseItemSubtle {
+  display: block;
+  margin-top: 0.25rem;
+  color: #64748b;
+}
+
+.courseInlineFileList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.courseInlineFileButton {
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  padding: 0.28rem 0.55rem;
+  cursor: pointer;
+}
+
+.courseItemActions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.courseItemActions button {
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.courseItemActions button:last-child {
+  border-color: #fecaca;
+  background-color: #fff1f2;
+  color: #b91c1c;
+}
+
 .courseMaterialRow p {
   margin: 0.25rem 0;
   color: #334155;
@@ -980,35 +1331,482 @@ h1, h2, h3 {
 
 .courseMaterialActions {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 0.35rem;
 }
 
 .courseMaterialActions button {
-  border: 1px solid #dbeafe;
+  border: 1px solid #fecaca;
   border-radius: 7px;
-  background-color: #eff6ff;
-  color: #1d4ed8;
+  background-color: #fff1f2;
+  color: #b91c1c;
   font-size: 0.8rem;
   font-weight: 600;
   padding: 0.3rem 0.5rem;
   cursor: pointer;
 }
 
-.courseMaterialActions button:last-child {
-  border-color: #fecaca;
+.courseModalCard {
+  width: min(560px, 100%);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+
+.assignmentWorkspace {
+  margin-top: 1.2rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+.assignmentWorkspaceStandalone,
+.contentViewerWorkspace {
+  margin-top: 1rem;
+}
+
+.assignmentWorkspaceHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.assignmentWorkspaceEyebrow {
+  margin: 0 0 0.2rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.assignmentWorkspaceHeader h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.assignmentWorkspaceActions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.assignmentEditorCard,
+.assignmentDetailPanel,
+.assignmentSubmissionTable {
+  padding: 1rem 1.1rem;
+}
+
+.assignmentSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.assignmentSummaryGrid article {
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  background-color: #fcfcfd;
+  padding: 0.9rem;
+}
+
+.assignmentSummaryGrid h4,
+.assignmentDetailPanel h4,
+.assignmentSubmissionTable h4 {
+  margin: 0 0 0.45rem;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
+.assignmentSummaryGrid p,
+.assignmentDetailPanel p {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.assignmentAttachmentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.assignmentAttachmentChip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.assignmentAttachmentRemoveButton {
+  opacity: 0;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #fecaca;
+  border-radius: 50%;
   background-color: #fff1f2;
+  color: #b91c1c;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.assignmentAttachmentChip:hover .assignmentAttachmentRemoveButton {
+  opacity: 1;
+}
+
+.assignmentCheckboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.assignmentTableHeader,
+.assignmentTableRow {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr 1fr 0.9fr 1.2fr 0.9fr;
+  gap: 0.8rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.88rem;
+}
+
+.assignmentTableHeader {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.assignmentTableRow {
+  color: #334155;
+}
+
+.assignmentTableRowSimple {
+  grid-template-columns: 1.2fr 1.2fr 0.8fr;
+}
+
+.adminUsersTable {
+  margin-top: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.adminUsersTableHeader,
+.adminUsersTableRow {
+  display: grid;
+  grid-template-columns: 0.9fr 1fr 1.2fr;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #eef2f7;
+  font-size: 0.9rem;
+}
+
+.adminUsersTableHeader {
+  color: #64748b;
+  font-weight: 700;
+  background-color: #f8fafc;
+}
+
+.adminUsersTableRow {
+  color: #334155;
+}
+
+.adminUsersTableRow:last-child {
+  border-bottom: none;
+}
+
+.adminUsersTableWide {
+  margin-top: 1rem;
+}
+
+.adminUsersTableHeaderWide,
+.adminUsersTableRowWide {
+  grid-template-columns: 0.8fr 1fr 1.3fr 0.7fr 1fr 1.4fr;
+}
+
+.adminCoursesTableHeaderWide,
+.adminCoursesTableRowWide {
+  grid-template-columns: 1fr 1.2fr 0.8fr 0.8fr 1fr;
+}
+
+.adminReportsTableHeaderWide,
+.adminReportsTableRowWide {
+  grid-template-columns: 1.4fr 1.1fr 0.8fr 0.8fr;
+}
+
+.adminUsersActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.adminRoleSelect {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  background-color: #ffffff;
+}
+
+.adminRoleSelect:disabled {
+  background-color: #f8fafc;
+  color: #64748b;
+}
+
+.adminInlineHint {
+  display: block;
+  margin-top: 0.25rem;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.adminActionSuccess,
+.adminActionError {
+  margin-top: 0.65rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+}
+
+.adminActionSuccess {
+  background-color: #ecfdf3;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.adminActionError {
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
   color: #b91c1c;
 }
 
-.courseUploadBox {
-  margin-top: 0.9rem;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 0.85rem;
+.adminProfileModal {
+  position: relative;
+  max-width: 760px;
+  width: min(760px, 95vw);
 }
 
-.courseUploadBox h4 {
-  margin: 0 0 0.55rem;
+.adminProfileTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  margin-top: 0.65rem;
+}
+
+.adminProfileImage,
+.adminProfileInitials {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #dbeafe;
+}
+
+.adminProfileInitials {
+  display: grid;
+  place-items: center;
+  background-color: #e0e7ff;
+  color: #1e3a8a;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.adminProfileTopActions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.adminModalCloseButton {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.adminModalCloseButton:hover {
+  color: #0f172a;
+}
+
+.adminProfileGrid {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.adminProfileGrid article {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  background-color: #ffffff;
+}
+
+.adminProfileGrid input,
+.adminProfileGrid select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.86rem;
+}
+
+.adminProfileGrid h4 {
+  margin: 0 0 0.3rem;
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.adminProfileGrid p {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.adminConfirmModal {
+  max-width: 420px;
+  width: min(420px, 94vw);
+}
+
+.assignmentGradeInput {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+.contentViewerWorkspace {
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+.contentViewerSummaryGrid {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.contentViewerFiles {
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.contentViewerTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.contentViewerTab {
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  padding: 0.38rem 0.75rem;
+  cursor: pointer;
+}
+
+.contentViewerTabActive {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.contentViewerFileCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background-color: #ffffff;
+  padding: 1rem;
+}
+
+.contentViewerFileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.85rem;
+}
+
+.contentViewerFrame {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.contentViewerImage,
+.contentViewerVideo {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.contentViewerFallback {
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 1rem;
+  color: #475569;
+  background-color: #f8fafc;
+}
+
+.filePreviewCard {
+  width: min(920px, 100%);
+  border-radius: 18px;
+}
+
+.filePreviewHeader h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.filePreviewBody {
+  margin-top: 0.85rem;
+}
+
+.filePreviewImage,
+.filePreviewVideo {
+  width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #f8fafc;
+}
+
+.filePreviewFrame {
+  width: 100%;
+  min-height: 72vh;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
+}
+
+.filePreviewDownloadButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .myCourseCard {
@@ -1093,6 +1891,10 @@ h1, h2, h3 {
     grid-template-columns: 1fr;
   }
 
+  .dashboardChartGrid {
+    grid-template-columns: 1fr;
+  }
+
   .profileHeader {
     grid-template-columns: 1fr;
   }
@@ -1114,7 +1916,7 @@ h1, h2, h3 {
     grid-template-columns: 1fr;
   }
 
-  .courseModuleAddRow {
+  .courseModuleToolbar {
     grid-template-columns: 1fr;
   }
 
