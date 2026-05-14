@@ -2226,6 +2226,33 @@ function CoursesPage() {
                           <h4>Your Attempts</h4>
                           <p>{studentQuizAttempt?.attemptCount || 0}</p>
                         </article>
+                        <article>
+                          <h4>Your Score</h4>
+                          {(() => {
+                            const used = studentQuizAttempt?.attemptCount || 0;
+                            if (!used) {
+                              return <p>—</p>;
+                            }
+                            const earned = studentQuizAttempt?.score ?? studentQuizAttempt?.autoScore ?? 0;
+                            const outOf = studentQuizAttempt?.total ?? studentQuizAttempt?.autoTotal ?? 0;
+                            const pct =
+                              Number.isFinite(Number(studentQuizAttempt?.percent)) && studentQuizAttempt.percent != null
+                                ? studentQuizAttempt.percent
+                                : outOf > 0
+                                  ? Math.round((earned / outOf) * 100)
+                                  : 0;
+                            const passed = pct >= 50;
+                            return (
+                              <>
+                                <p>
+                                  {outOf > 0 ? `${earned} / ${outOf}` : `${earned} pts`}
+                                  {outOf > 0 ? ` (${pct}%)` : ''}
+                                </p>
+                                <p className="quizInstructionScoreStatus">{passed ? 'Passed' : 'Not passed'}</p>
+                              </>
+                            );
+                          })()}
+                        </article>
                       </div>
 
                       {(() => {

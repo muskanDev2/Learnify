@@ -1430,6 +1430,13 @@ h1, h2, h3 {
   font-weight: 600;
 }
 
+.assignmentSummaryGrid .quizInstructionScoreStatus {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
 .assignmentAttachmentList {
   display: flex;
   flex-wrap: wrap;
