@@ -1,6 +1,22 @@
+import { useEffect, useState } from 'react';
+import { checkApiHealth } from '../utils/api';
+
 export default function HomePage() {
+  const [apiStatus, setApiStatus] = useState('checking');
+
+  useEffect(() => {
+    checkApiHealth()
+      .then(() => setApiStatus('connected'))
+      .catch(() => setApiStatus('offline'));
+  }, []);
+
   return (
     <>
+      {apiStatus !== 'checking' && (
+        <p className="authSubtext" style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+          API: {apiStatus === 'connected' ? 'Connected to backend' : 'Backend offline (check Render / Atlas)'}
+        </p>
+      )}
       <section className="heroSection">
         <p className="heroTag">Learning Management System</p>
         <h1 className="heroTitle">Welcome to Learnify</h1>
