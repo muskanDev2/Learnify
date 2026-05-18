@@ -14,7 +14,10 @@ export default function HomePage() {
     <>
       {apiStatus !== 'checking' && (
         <p className="authSubtext" style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-          API: {apiStatus === 'connected' ? 'Connected to backend' : 'Backend offline — redeploy Vercel after env fix'}
+          API:{' '}
+          {apiStatus === 'connected'
+            ? 'Connected to backend'
+            : 'Backend offline — wait 30s and refresh (Render free tier)'}
         </p>
       )}
       <section className="heroSection">
