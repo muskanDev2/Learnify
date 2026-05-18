@@ -11,7 +11,12 @@ function createApp() {
 
   app.use(
     cors({
-      origin: clientUrls,
+      origin(origin, callback) {
+        if (!origin) return callback(null, true);
+        if (clientUrls.includes(origin)) return callback(null, true);
+        if (/^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return callback(null, true);
+        return callback(new Error(`CORS blocked: ${origin}`));
+      },
       credentials: true,
     }),
   );

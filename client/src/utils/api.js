@@ -1,4 +1,9 @@
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+const RENDER_API = 'https://learnify-api-2con.onrender.com';
+
+const API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? RENDER_API : 'http://localhost:5000')
+).replace(/\/$/, '');
 
 export async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
