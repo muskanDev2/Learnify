@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/authUtils';
+import { enrollInCourse, fetchEnrollments } from '../utils/enrollmentApi';
+import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
 
 const COURSES_KEY = 'learnify_courses';
 const ENROLLMENTS_KEY = 'learnify_enrollments';
@@ -31,6 +33,7 @@ function getStoredEnrollments() {
 
 function saveStoredEnrollments(enrollments) {
   localStorage.setItem(ENROLLMENTS_KEY, JSON.stringify(enrollments));
+  syncLmsSnapshotFromLocalSoon();
 }
 
 /** Same logical course can be saved more than once in localStorage (different ids). Collapse to one row for the UI. */
@@ -89,6 +92,30 @@ export default function StudentCoursesPanel() {
   const [activeCourse, setActiveCourse] = useState(null);
   const [enteredKey, setEnteredKey] = useState('');
   const [keyError, setKeyError] = useState('');
+  const [isEnrolling, setIsEnrolling] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadEnrollmentsFromApi() {
+      try {
+        const apiEnrollments = await fetchEnrollments();
+        if (!isMounted) return;
+        setEnrollments(apiEnrollments);
+        saveStoredEnrollments(apiEnrollments);
+      } catch (error) {
+        if (isMounted) {
+          setKeyError(error.message || 'Could not load enrollments.');
+        }
+      }
+    }
+
+    loadEnrollmentsFromApi();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const enrolledCourseIds = [...new Set(enrollments[studentEmail] || [])];
   const enrolledIdsSet = useMemo(() => new Set(enrolledCourseIds), [enrolledCourseIds]);
@@ -108,16 +135,22 @@ export default function StudentCoursesPanel() {
   const enrolledCourses = filteredCourses.filter((course) => enrolledCourseIds.includes(course.id));
   const browseCourses = filteredCourses.filter((course) => !enrolledCourseIds.includes(course.id));
 
-  function completeEnrollment(courseId) {
+  async function completeEnrollment(courseId, enrollmentKey = '') {
     const currentEnrolledIds = enrollments[studentEmail] || [];
     if (currentEnrolledIds.includes(courseId)) return;
 
-    const updated = {
-      ...enrollments,
-      [studentEmail]: [...new Set([...currentEnrolledIds, courseId])],
-    };
-    setEnrollments(updated);
-    saveStoredEnrollments(updated);
+    setIsEnrolling(true);
+    setKeyError('');
+
+    try {
+      const updated = await enrollInCourse(courseId, enrollmentKey);
+      setEnrollments(updated);
+      saveStoredEnrollments(updated);
+    } catch (error) {
+      setKeyError(error.message || 'Enrollment failed. Please try again.');
+    } finally {
+      setIsEnrolling(false);
+    }
   }
 
   function openCourse(courseId) {
@@ -141,16 +174,15 @@ export default function StudentCoursesPanel() {
     setKeyError('');
   }
 
-  function confirmProtectedEnrollment() {
+  async function confirmProtectedEnrollment() {
     if (!activeCourse) return;
 
-    // Frontend-only demo validation (real app must move this to backend).
-    if (enteredKey.trim() !== String(activeCourse.enrollmentKey || '').trim()) {
-      setKeyError('Invalid key. Please contact the instructor.');
+    await completeEnrollment(activeCourse.id, enteredKey.trim());
+    const latestEnrollments = getStoredEnrollments();
+    if (!(latestEnrollments[studentEmail] || []).includes(activeCourse.id)) {
       return;
     }
 
-    completeEnrollment(activeCourse.id);
     closeKeyModal();
   }
 
@@ -213,12 +245,12 @@ export default function StudentCoursesPanel() {
                 </div>
                 <div className="myCourseActions">
                   {isEnrolled ? (
-                    <button type="button" onClick={() => openCourse(course.id)}>
+                    <button type="button" onClick={() => openCourse(course.id)} disabled={isEnrolling}>
                       Open Course
                     </button>
                   ) : (
-                    <button type="button" onClick={() => openEnrollFlow(course)}>
-                      Enroll
+                    <button type="button" onClick={() => openEnrollFlow(course)} disabled={isEnrolling}>
+                      {isEnrolling ? 'Enrolling...' : 'Enroll'}
                     </button>
                   )}
                 </div>
@@ -242,14 +274,25 @@ export default function StudentCoursesPanel() {
                 value={enteredKey}
                 onChange={(event) => setEnteredKey(event.target.value)}
                 placeholder="Enter key provided by instructor"
+                autoComplete="off"
               />
               {keyError && <p className="errorText">{keyError}</p>}
             </div>
             <div className="profileModalActions">
-              <button type="button" className="profilePrimaryButton" onClick={confirmProtectedEnrollment}>
-                Confirm
+              <button
+                type="button"
+                className="profilePrimaryButton"
+                onClick={confirmProtectedEnrollment}
+                disabled={isEnrolling}
+              >
+                {isEnrolling ? 'Enrolling...' : 'Confirm'}
               </button>
-              <button type="button" className="heroButton heroButtonSecondary" onClick={closeKeyModal}>
+              <button
+                type="button"
+                className="heroButton heroButtonSecondary"
+                onClick={closeKeyModal}
+                disabled={isEnrolling}
+              >
                 Cancel
               </button>
             </div>

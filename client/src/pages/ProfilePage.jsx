@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentUser, updateCurrentUserProfile } from '../utils/authUtils';
+import { clearAuthSession, getCurrentUser, updateCurrentUserProfile } from '../utils/authUtils';
+import { fetchMe, updateMe } from '../utils/userApi';
 
 const COUNTRY_OPTIONS = ['Pakistan', 'India', 'United Arab Emirates', 'Saudi Arabia', 'United Kingdom', 'United States'];
 
@@ -31,6 +32,24 @@ export default function ProfilePage() {
   const [toastMessage, setToastMessage] = useState('');
   const photoMenuRef = useRef(null);
   const deleteCancelRef = useRef(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchMe()
+      .then((user) => {
+        if (!isMounted || !user) return;
+        updateCurrentUserProfile(user);
+        const nextProfile = buildProfileData(user);
+        setProfileData(nextProfile);
+        setEditForm(nextProfile);
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -79,20 +98,23 @@ export default function ProfilePage() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const imageData = reader.result;
-      setProfileData((prev) => ({ ...prev, profileImage: imageData }));
-      const result = updateCurrentUserProfile({ profileImage: imageData });
-      if (result.ok) {
+      try {
+        const updatedUser = await updateMe({ profileImage: imageData });
+        updateCurrentUserProfile(updatedUser);
+        setProfileData((prev) => ({ ...prev, profileImage: imageData }));
         window.dispatchEvent(new Event('learnify-user-updated'));
         showSuccessToast('Successfully updated!');
         setIsPhotoMenuOpen(false);
+      } catch {
+        showSuccessToast('Could not update profile photo.');
       }
     };
     reader.readAsDataURL(file);
   }
 
-  function handleConfirmEdit() {
+  async function handleConfirmEdit() {
     const updatedProfile = {
       phone: editForm.phone,
       address: editForm.address,
@@ -103,21 +125,22 @@ export default function ProfilePage() {
       countryLocked: true,
     };
 
-    const result = updateCurrentUserProfile(updatedProfile);
-    if (!result.ok) {
-      return;
+    try {
+      const updatedUser = await updateMe(updatedProfile);
+      updateCurrentUserProfile(updatedUser);
+      const mergedProfile = buildProfileData(updatedUser);
+      setProfileData(mergedProfile);
+      setEditForm(mergedProfile);
+      setIsEditOpen(false);
+      window.dispatchEvent(new Event('learnify-user-updated'));
+      showSuccessToast('Successfully updated!');
+    } catch {
+      showSuccessToast('Could not update profile.');
     }
-
-    const mergedProfile = { ...profileData, ...updatedProfile };
-    setProfileData(mergedProfile);
-    setEditForm(mergedProfile);
-    setIsEditOpen(false);
-    window.dispatchEvent(new Event('learnify-user-updated'));
-    showSuccessToast('Successfully updated!');
   }
 
   function handleDeactivateAccount() {
-    localStorage.removeItem('learnify_current_user');
+    clearAuthSession();
     navigate('/', { replace: true });
   }
 

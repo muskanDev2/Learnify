@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   loginUser,
+  setCurrentUser,
   validateEmail,
   validatePassword,
 } from '../utils/authUtils';
@@ -45,9 +46,7 @@ export default function LoginPage() {
     if (!isFormValid) return;
 
     setIsSubmitting(true);
-    // Simulate API request delay to show loading state.
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    const result = loginUser(formValues);
+    const result = await loginUser(formValues);
     setIsSubmitting(false);
 
     if (!result.ok) {
@@ -55,7 +54,7 @@ export default function LoginPage() {
       return;
     }
 
-    localStorage.setItem('learnify_current_user', JSON.stringify(result.user));
+    setCurrentUser(result.user);
     navigate('/dashboard', { replace: true });
   }
 

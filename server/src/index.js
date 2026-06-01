@@ -1,11 +1,13 @@
 const { getEnv } = require('./config/env');
 const { connectDatabase } = require('./config/database');
 const { createApp } = require('./app');
+const { seedAdminUser } = require('./utils/seedAdmin');
 
 async function startServer() {
   try {
     const { port } = getEnv();
     await connectDatabase();
+    await seedAdminUser();
 
     const app = createApp();
 

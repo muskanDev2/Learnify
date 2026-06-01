@@ -1,6 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../utils/authUtils';
+import {
+  createCourse as createCourseRequest,
+  deleteCourse as deleteCourseRequest,
+  fetchCourses,
+  updateCourse as updateCourseRequest,
+} from '../utils/courseApi';
+import { fetchEnrollments, manageEnrollment } from '../utils/enrollmentApi';
+import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
+import { fetchUsers } from '../utils/userApi';
 
 const COURSES_KEY = 'learnify_courses';
 
@@ -18,10 +27,7 @@ function getStoredCourses() {
 
 function saveStoredCourses(courses) {
   localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
-}
-
-function getNextId(items) {
-  return items.length ? Math.max(...items.map((item) => item.id)) + 1 : 1;
+  syncLmsSnapshotFromLocalSoon();
 }
 
 function buildStarterModules() {
@@ -59,6 +65,11 @@ export default function InstructorCoursesPanel() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingCourseId, setDeletingCourseId] = useState(null);
   const [editingCourseId, setEditingCourseId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [students, setStudents] = useState([]);
+  const [enrollments, setEnrollments] = useState({});
+  const [selectedStudentByCourse, setSelectedStudentByCourse] = useState({});
   const [courseForm, setCourseForm] = useState({
     title: '',
     subtitle: '',
@@ -67,6 +78,44 @@ export default function InstructorCoursesPanel() {
     category: '',
     enrollmentKey: '',
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCoursesFromApi() {
+      try {
+        const [apiCourses, apiEnrollments, apiUsers] = await Promise.all([
+          fetchCourses(),
+          fetchEnrollments(),
+          fetchUsers(),
+        ]);
+        if (!isMounted) return;
+
+        saveStoredCourses(apiCourses);
+        setEnrollments(apiEnrollments);
+        setStudents(apiUsers.filter((user) => user.role === 'student' && user.active !== false));
+        setCourses(
+          apiCourses
+            .filter((course) => (course.ownerEmail || '').toLowerCase() === instructorEmail)
+            .map((course) => ({
+              ...course,
+              modules: normalizeModules(course.modules),
+            })),
+        );
+        setStatusMessage('');
+      } catch (error) {
+        if (isMounted) {
+          setStatusMessage(`Could not load courses from API: ${error.message}`);
+        }
+      }
+    }
+
+    loadCoursesFromApi();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [instructorEmail]);
 
   const filteredCourses = useMemo(() => {
     const searched = courses.filter((course) =>
@@ -104,40 +153,14 @@ export default function InstructorCoursesPanel() {
     });
   }, [courses, searchTerm, categoryFilter, sortBy]);
 
-  function persistInstructorCourses(updatedCourses) {
-    const otherUsersCourses = getStoredCourses().filter((course) => {
-      const owner = (course.ownerEmail || '').toLowerCase();
-      return owner !== instructorEmail;
-    });
-
-    // Avoid re-saving duplicates for this instructor.
-    const dedupeKey = (course) =>
-      [
-        (course.ownerEmail || '').toLowerCase(),
-        course.title || '',
-        course.subtitle || '',
-        course.description || '',
-        course.category || '',
-        course.enrollmentKey || '',
-      ].join('|');
-
-    const seen = new Set();
-    const uniqueInstructorCourses = (updatedCourses || []).filter((course) => {
-      const key = dedupeKey(course);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    saveStoredCourses([...otherUsersCourses, ...uniqueInstructorCourses]);
+  function upsertCachedCourse(course) {
+    const allCourses = getStoredCourses();
+    const updatedCourses = [course, ...allCourses.filter((savedCourse) => savedCourse.id !== course.id)];
+    saveStoredCourses(updatedCourses);
   }
 
-  function updateInstructorCourses(updater) {
-    setCourses((prev) => {
-      const updatedCourses = updater(prev);
-      persistInstructorCourses(updatedCourses);
-      return updatedCourses;
-    });
+  function removeCachedCourse(courseId) {
+    saveStoredCourses(getStoredCourses().filter((course) => course.id !== courseId));
   }
 
   function openCreateModal() {
@@ -171,7 +194,7 @@ export default function InstructorCoursesPanel() {
     setCourseForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleSaveCourse() {
+  async function handleSaveCourse() {
     if (
       !courseForm.title.trim() ||
       !courseForm.subtitle.trim() ||
@@ -181,59 +204,91 @@ export default function InstructorCoursesPanel() {
       return;
     }
 
-    if (editingCourseId) {
-      updateInstructorCourses((prev) => {
-        const updatedCourses = prev.map((course) =>
-          course.id === editingCourseId
-            ? {
-                ...course,
-                ...courseForm,
-                instructor: course.instructor || instructorName,
-                lastAccessed: new Date().toISOString().slice(0, 10),
-              }
-            : course,
-        );
-        return updatedCourses;
-      });
-    } else {
-      updateInstructorCourses((prev) => {
-        const nextId = getNextId(prev);
-        const newCourse = {
-          id: nextId,
-          title: courseForm.title.trim(),
-          subtitle: courseForm.subtitle.trim(),
-          description: courseForm.description.trim(),
-          instructor: instructorName,
-          category: courseForm.category.trim(),
-          enrollmentKey: courseForm.enrollmentKey.trim(),
-          imageClass: 'courseImageBlue',
-          lastAccessed: new Date().toISOString().slice(0, 10),
-          ownerEmail: instructorEmail,
-          modules: buildStarterModules(),
-        };
-        const updatedCourses = [newCourse, ...prev];
-        return updatedCourses;
-      });
-    }
+    setIsSaving(true);
+    setStatusMessage('');
 
-    setIsModalOpen(false);
+    try {
+      if (editingCourseId) {
+        const updatedCourse = await updateCourseRequest(editingCourseId, courseForm);
+        setCourses((prev) =>
+          prev.map((course) =>
+            course.id === editingCourseId
+              ? { ...updatedCourse, modules: normalizeModules(updatedCourse.modules) }
+              : course,
+          ),
+        );
+        upsertCachedCourse(updatedCourse);
+      } else {
+        const newCourse = await createCourseRequest(courseForm);
+        setCourses((prev) => [{ ...newCourse, modules: normalizeModules(newCourse.modules) }, ...prev]);
+        upsertCachedCourse(newCourse);
+      }
+
+      setIsModalOpen(false);
+    } catch (error) {
+      setStatusMessage(error.message || 'Course could not be saved.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function handleDeleteCourse(courseId) {
     setDeletingCourseId(courseId);
   }
 
-  function confirmDeleteCourse() {
+  async function confirmDeleteCourse() {
     if (!deletingCourseId) return;
-    updateInstructorCourses((prev) => {
-      const updatedCourses = prev.filter((course) => course.id !== deletingCourseId);
-      return updatedCourses;
-    });
-    setDeletingCourseId(null);
+
+    setIsSaving(true);
+    setStatusMessage('');
+
+    try {
+      await deleteCourseRequest(deletingCourseId);
+      setCourses((prev) => prev.filter((course) => course.id !== deletingCourseId));
+      removeCachedCourse(deletingCourseId);
+      setDeletingCourseId(null);
+    } catch (error) {
+      setStatusMessage(error.message || 'Course could not be deleted.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function openContentManager(courseId) {
     navigate('/courses', { state: { courseId } });
+  }
+
+  function getSelectedStudent(courseId) {
+    const selectedId = selectedStudentByCourse[courseId] || students[0]?.id || '';
+    return students.find((student) => student.id === selectedId) || null;
+  }
+
+  function isStudentEnrolled(student, courseId) {
+    if (!student) return false;
+    return (enrollments[student.email?.toLowerCase()] || []).includes(courseId);
+  }
+
+  async function handleEnrollmentToggle(course) {
+    const student = getSelectedStudent(course.id);
+    if (!student) return;
+
+    const enrolled = isStudentEnrolled(student, course.id);
+    setIsSaving(true);
+    setStatusMessage('');
+
+    try {
+      const updatedEnrollments = await manageEnrollment({
+        courseId: course.id,
+        studentId: student.id,
+        status: enrolled ? 'dropped' : 'active',
+      });
+      setEnrollments(updatedEnrollments);
+      setStatusMessage(`${student.name} ${enrolled ? 'unenrolled from' : 'enrolled in'} ${course.title}.`);
+    } catch (error) {
+      setStatusMessage(error.message || 'Enrollment update failed.');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -243,10 +298,12 @@ export default function InstructorCoursesPanel() {
           <h2>My courses</h2>
           <h3>Course overview</h3>
         </div>
-        <button type="button" className="profilePrimaryButton" onClick={openCreateModal}>
+        <button type="button" className="profilePrimaryButton" onClick={openCreateModal} disabled={isSaving}>
           Create Course
         </button>
       </div>
+
+      {statusMessage && <p className="errorText formError">{statusMessage}</p>}
 
       <div className="myCoursesFilters">
         <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
@@ -293,12 +350,49 @@ export default function InstructorCoursesPanel() {
                   Enrollment: {course.enrollmentKey ? 'Protected' : 'Public'}
                 </small>
               </div>
+              <div className="enrollmentActionCard enrollmentActionCardCompact">
+                <div className="enrollmentActionHeader">
+                  <span>Manage learner</span>
+                  <strong>
+                    {isStudentEnrolled(getSelectedStudent(course.id), course.id)
+                      ? 'Enrolled'
+                      : 'Not enrolled'}
+                  </strong>
+                </div>
+                <select
+                  className="enrollmentSelect"
+                  value={selectedStudentByCourse[course.id] || students[0]?.id || ''}
+                  onChange={(event) =>
+                    setSelectedStudentByCourse((prev) => ({
+                      ...prev,
+                      [course.id]: event.target.value,
+                    }))
+                  }
+                  aria-label={`Select student for ${course.title}`}
+                >
+                  {students.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.name || student.email}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="enrollmentToggleButton"
+                  onClick={() => handleEnrollmentToggle(course)}
+                  disabled={isSaving || !students.length}
+                >
+                  {isStudentEnrolled(getSelectedStudent(course.id), course.id)
+                    ? 'Unenroll learner'
+                    : 'Enroll learner'}
+                </button>
+              </div>
               <div className="myCourseActions">
-                <button type="button" onClick={() => openContentManager(course.id)}>
+              <button type="button" onClick={() => openContentManager(course.id)} disabled={isSaving}>
                   Manage Content
                 </button>
-                <button type="button" onClick={() => openEditModal(course)}>Edit</button>
-                <button type="button" onClick={() => handleDeleteCourse(course.id)}>Delete</button>
+                <button type="button" onClick={() => openEditModal(course)} disabled={isSaving}>Edit</button>
+                <button type="button" onClick={() => handleDeleteCourse(course.id)} disabled={isSaving}>Delete</button>
               </div>
             </article>
           ))
@@ -311,7 +405,13 @@ export default function InstructorCoursesPanel() {
             <h3>{editingCourseId ? 'Edit course' : 'Create course'}</h3>
             <div className="authForm">
               <label htmlFor="course-title">Course title</label>
-              <input id="course-title" name="title" value={courseForm.title} onChange={handleFormChange} />
+              <input
+                id="course-title"
+                name="title"
+                value={courseForm.title}
+                onChange={handleFormChange}
+                autoComplete="off"
+              />
 
               <label htmlFor="course-subtitle">Term / subtitle</label>
               <input
@@ -319,6 +419,7 @@ export default function InstructorCoursesPanel() {
                 name="subtitle"
                 value={courseForm.subtitle}
                 onChange={handleFormChange}
+                autoComplete="off"
               />
 
               <label htmlFor="course-category">Category</label>
@@ -328,6 +429,7 @@ export default function InstructorCoursesPanel() {
                 value={courseForm.category}
                 onChange={handleFormChange}
                 placeholder="AI, Robotics, Computer Science..."
+                autoComplete="off"
               />
 
               <label htmlFor="course-description">Description</label>
@@ -338,6 +440,7 @@ export default function InstructorCoursesPanel() {
                 onChange={handleFormChange}
                 rows={3}
                 placeholder="Write short course description..."
+                autoComplete="off"
               />
 
               <label htmlFor="course-enrollment-key">Enrollment Key (optional)</label>
@@ -347,14 +450,15 @@ export default function InstructorCoursesPanel() {
                 value={courseForm.enrollmentKey}
                 onChange={handleFormChange}
                 placeholder="Set key to protect enrollment (leave blank for Public)"
+                autoComplete="off"
               />
 
               <label htmlFor="course-instructor">Instructor</label>
-              <input id="course-instructor" value={courseForm.instructor} readOnly />
+              <input id="course-instructor" value={courseForm.instructor} readOnly autoComplete="off" />
             </div>
             <div className="profileModalActions">
-              <button type="button" className="profilePrimaryButton" onClick={handleSaveCourse}>
-                Save
+              <button type="button" className="profilePrimaryButton" onClick={handleSaveCourse} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
               <button type="button" className="heroButton heroButtonSecondary" onClick={() => setIsModalOpen(false)}>
                 Cancel
@@ -372,8 +476,8 @@ export default function InstructorCoursesPanel() {
               Are you sure you want to delete this course? 
             </p>
             <div className="profileModalActions">
-              <button type="button" className="profileDangerButton" onClick={confirmDeleteCourse}>
-                Yes, Delete
+              <button type="button" className="profileDangerButton" onClick={confirmDeleteCourse} disabled={isSaving}>
+                {isSaving ? 'Deleting...' : 'Yes, Delete'}
               </button>
               <button
                 type="button"

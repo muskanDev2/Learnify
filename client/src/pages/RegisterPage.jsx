@@ -63,10 +63,7 @@ export default function RegisterPage() {
     if (!isFormValid) return;
 
     setIsSubmitting(true);
-    // Simulate a basic API call delay for better UX feedback.
-    await new Promise((resolve) => setTimeout(resolve, 900));
-
-    const result = registerUser(formValues);
+    const result = await registerUser(formValues);
     setIsSubmitting(false);
 
     if (!result.ok) {

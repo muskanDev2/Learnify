@@ -1557,6 +1557,98 @@ h1, h2, h3 {
   gap: 0.45rem;
 }
 
+.enrollmentActionCard {
+  width: min(100%, 18rem);
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.enrollmentActionCardCompact {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.enrollmentActionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.enrollmentActionHeader strong {
+  color: #1d4ed8;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 0.18rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.enrollmentSelect {
+  width: 100%;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #0f172a;
+  padding: 0.58rem 0.7rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.enrollmentSelect:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.enrollmentActionButtons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.enrollmentToggleButton,
+.enrollmentOpenButton {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.62rem 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.enrollmentToggleButton {
+  color: #1d4ed8;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.enrollmentToggleButton:hover {
+  background-color: #dbeafe;
+}
+
+.enrollmentOpenButton {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+}
+
+.enrollmentOpenButton:hover {
+  transform: translateY(-1px);
+}
+
+.enrollmentToggleButton:disabled,
+.enrollmentOpenButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
 .adminRoleSelect {
   width: 100%;
   border: 1px solid #cbd5e1;

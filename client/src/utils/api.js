@@ -1,31 +1,19 @@
 const RENDER_API = 'https://learnify-api-2con.onrender.com';
 
-function resolveApiBase() {
-  const fromEnv = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, '');
-
-  // Never use localhost in production builds (common Vercel misconfiguration).
-  if (fromEnv && !(import.meta.env.PROD && fromEnv.includes('localhost'))) {
-    return fromEnv;
-  }
-
-  // Production: empty base = same-origin /api/* (proxied by vercel.json → Render).
-  if (import.meta.env.PROD) {
-    return '';
-  }
-
-  return 'http://localhost:5000';
-}
-
-const API_BASE = resolveApiBase();
+const API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? RENDER_API : 'http://localhost:5000')
+).replace(/\/$/, '');
 
 export async function apiFetch(path, options = {}) {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const url = API_BASE ? `${API_BASE}${normalizedPath}` : normalizedPath;
+  const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+  const token = localStorage.getItem('learnify_auth_token');
 
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
   });
@@ -43,4 +31,4 @@ export async function checkApiHealth() {
   return apiFetch('/api/health');
 }
 
-export { API_BASE, RENDER_API };
+export { API_BASE };

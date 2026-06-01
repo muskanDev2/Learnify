@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -13,34 +13,12 @@ import Card from './Card';
 import DashboardChartCard from './DashboardChartCard';
 import SectionContainer from './SectionContainer';
 import { instructorCourseLoadSeries, mean, median } from '../utils/dashboardStats';
-
-const COURSES_KEY = 'learnify_courses';
-const ENROLLMENTS_KEY = 'learnify_enrollments';
+import { getCurrentUser } from '../utils/authUtils';
+import { fetchCourses } from '../utils/courseApi';
+import { fetchEnrollments } from '../utils/enrollmentApi';
 
 const AXIS = '#64748b';
 const GRID = '#e2e8f0';
-
-function getStoredCourses() {
-  const raw = localStorage.getItem(COURSES_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function getStoredEnrollments() {
-  const raw = localStorage.getItem(ENROLLMENTS_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 function LoadTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -55,10 +33,20 @@ function LoadTooltip({ active, payload }) {
 }
 
 export default function InstructorDashboard() {
-  const currentUser = JSON.parse(localStorage.getItem('learnify_current_user') || 'null');
+  const currentUser = getCurrentUser();
   const instructorEmail = (currentUser?.email || '').toLowerCase();
-  const courses = getStoredCourses().filter((course) => course.ownerEmail === instructorEmail);
-  const enrollments = getStoredEnrollments();
+  const [allCourses, setAllCourses] = useState([]);
+  const [enrollments, setEnrollments] = useState({});
+  const courses = allCourses.filter((course) => course.ownerEmail === instructorEmail);
+
+  useEffect(() => {
+    Promise.all([fetchCourses(), fetchEnrollments()])
+      .then(([apiCourses, apiEnrollments]) => {
+        setAllCourses(apiCourses);
+        setEnrollments(apiEnrollments);
+      })
+      .catch(() => {});
+  }, []);
   const totalStudents = Object.values(enrollments).reduce((sum, ids) => {
     if (!Array.isArray(ids)) return sum;
     return sum + ids.filter((id) => courses.some((course) => course.id === id)).length;
@@ -68,8 +56,8 @@ export default function InstructorDashboard() {
     .filter((item) => item.type === 'assignment').length;
 
   const loadSeries = useMemo(
-    () => instructorCourseLoadSeries(getStoredCourses(), enrollments, instructorEmail),
-    [enrollments, instructorEmail],
+    () => instructorCourseLoadSeries(allCourses, enrollments, instructorEmail),
+    [allCourses, enrollments, instructorEmail],
   );
 
   const studentCounts = loadSeries.map((r) => r.students);

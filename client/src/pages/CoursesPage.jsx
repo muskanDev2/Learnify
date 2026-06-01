@@ -7,12 +7,35 @@ import {
   isInstructor as checkInstructor,
   isStudent as checkStudent,
 } from '../utils/authUtils';
+import {
+  fetchCourses,
+  updateCourse as updateCourseRequest,
+  updateStudentCourseWork,
+} from '../utils/courseApi';
+import {
+  fetchProgress,
+  openContent,
+  saveContentTime,
+  saveProgress as saveProgressRequest,
+} from '../utils/progressApi';
+import { fetchMyQuizAttempts, submitQuizAttempt as submitQuizAttemptRequest } from '../utils/quizApi';
+import {
+  fetchAssignmentSubmissions,
+  fetchMyAssignmentSubmission,
+  gradeAssignmentSubmission,
+  submitAssignment as submitAssignmentRequest,
+} from '../utils/assignmentApi';
+import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
 
 const COURSES_KEY = 'learnify_courses';
 const ENROLLMENTS_KEY = 'learnify_enrollments';
 const STUDENT_PROGRESS_KEY = 'learnify_student_progress';
 const CONTENT_FILE_TYPES = ['pdf', 'video', 'ppt', 'doc', 'txt', 'image'];
 const ASSIGNMENT_GRADING_OPTIONS = ['Not graded', 'Points based', 'Pass / Fail'];
+
+function activityKey(courseId, itemId) {
+  return `${courseId}:${itemId}`;
+}
 
 function getStoredCourses() {
   const rawCourses = localStorage.getItem(COURSES_KEY);
@@ -38,6 +61,7 @@ function getStoredCourses() {
 
 function saveStoredCourses(courses) {
   localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
+  syncLmsSnapshotFromLocalSoon();
 }
 
 function getStoredEnrollments() {
@@ -64,6 +88,7 @@ function getStoredStudentProgress() {
 
 function saveStoredStudentProgress(progress) {
   localStorage.setItem(STUDENT_PROGRESS_KEY, JSON.stringify(progress));
+  syncLmsSnapshotFromLocalSoon();
 }
 
 function readFilesAsDataUrls(fileList) {
@@ -289,6 +314,7 @@ function CoursesPage() {
   const userEmail = (currentUser?.email || '').toLowerCase();
   const allEnrollments = getStoredEnrollments();
   const studentEnrolledIds = allEnrollments[userEmail] || [];
+  const studentEnrolledIdsKey = studentEnrolledIds.join(',');
   const requestedCourseId = location.state?.courseId || null;
 
   const [courses, setCourses] = useState(() =>
@@ -325,9 +351,12 @@ function CoursesPage() {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizResult, setQuizResult] = useState(null);
   const [quizStarted, setQuizStarted] = useState(false);
+  const [quizTimeoutNotice, setQuizTimeoutNotice] = useState('');
   const [quizQuestionEditorMode, setQuizQuestionEditorMode] = useState('view'); // view | edit
   const [quizQuestionEditor, setQuizQuestionEditor] = useState([]);
   const [quizTimeLeftSec, setQuizTimeLeftSec] = useState(null);
+  const [quizAttemptsByKey, setQuizAttemptsByKey] = useState({});
+  const [assignmentSubmissionsByKey, setAssignmentSubmissionsByKey] = useState({});
   const quizAttemptSubmittedRef = useRef(false);
   const quizStartAtMsRef = useRef(null);
   const quizAnswersRef = useRef({});
@@ -347,6 +376,7 @@ function CoursesPage() {
     submissions: [],
   });
   const [studentProgress, setStudentProgress] = useState(() => getStoredStudentProgress());
+  const [courseSyncMessage, setCourseSyncMessage] = useState('');
   const [moduleItemForm, setModuleItemForm] = useState({
     title: '',
     itemType: 'content',
@@ -423,8 +453,35 @@ function CoursesPage() {
 
   const studentQuizAttempt = useMemo(() => {
     if (!isStudent || !selectedQuizItem) return null;
+    const key = activityKey(selectedCourse?.id, selectedQuizItem.id);
+    const apiAttempts = quizAttemptsByKey[key] || [];
+    const latestApiAttempt = apiAttempts[apiAttempts.length - 1];
+
+    if (latestApiAttempt) {
+      return {
+        studentEmail: userEmail,
+        score: latestApiAttempt.score,
+        total: latestApiAttempt.totalMarks,
+        percent: latestApiAttempt.percentage,
+        attemptCount: apiAttempts.length,
+        submittedAt: latestApiAttempt.submittedAt
+          ? new Date(latestApiAttempt.submittedAt).toLocaleString()
+          : '',
+        autoSubmitted: latestApiAttempt.autoSubmitted,
+      };
+    }
+
     return (selectedQuizItem.attempts || []).find((attempt) => attempt.studentEmail === userEmail) || null;
-  }, [isStudent, selectedQuizItem, userEmail]);
+  }, [isStudent, quizAttemptsByKey, selectedCourse, selectedQuizItem, userEmail]);
+
+  const selectedAssignmentSubmissions = useMemo(() => {
+    if (!selectedCourse || !selectedAssignmentItem) return [];
+    return (
+      assignmentSubmissionsByKey[activityKey(selectedCourse.id, selectedAssignmentItem.id)] ||
+      selectedAssignmentItem.submissions ||
+      []
+    );
+  }, [assignmentSubmissionsByKey, selectedAssignmentItem, selectedCourse]);
 
   const enrolledStudentsForSelectedCourse = useMemo(() => {
     if (!selectedCourse) return [];
@@ -476,6 +533,48 @@ function CoursesPage() {
     }
   }, [selectedContentFileId, selectedContentItem]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCoursePageDataFromApi() {
+      try {
+        const [apiCourses, apiProgress] = await Promise.all([
+          fetchCourses(),
+          fetchProgress(),
+        ]);
+        if (!isMounted) return;
+
+        const visibleCourses = apiCourses
+          .filter((course) => {
+            if (isAdmin) return true;
+            if (isInstructor) return (course.ownerEmail || '').toLowerCase() === userEmail;
+            if (isStudent) return studentEnrolledIds.includes(course.id);
+            return false;
+          })
+          .map((course) => ({
+            ...course,
+            modules: normalizeModules(course.modules),
+          }));
+
+        setCourses(visibleCourses);
+        setStudentProgress(apiProgress);
+        saveStoredCourses(apiCourses);
+        saveStoredStudentProgress(apiProgress);
+        setCourseSyncMessage('');
+      } catch (error) {
+        if (isMounted) {
+          setCourseSyncMessage(`Could not load course content from API: ${error.message}`);
+        }
+      }
+    }
+
+    loadCoursePageDataFromApi();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAdmin, isInstructor, isStudent, studentEnrolledIdsKey, userEmail]);
+
   function persistInstructorCourses(updatedCourses) {
     const allStored = getStoredCourses();
     const updatedIds = new Set((updatedCourses || []).map((c) => c.id));
@@ -485,6 +584,18 @@ function CoursesPage() {
 
     // Combine them. This ensures updatedCourses replace their old versions by ID.
     saveStoredCourses([...otherCourses, ...(updatedCourses || [])]);
+
+    if (selectedCourse) {
+      const changedCourse = (updatedCourses || []).find((course) => course.id === selectedCourse.id);
+      if (changedCourse) {
+        const saveCourseWork = canManageContent ? updateCourseRequest : updateStudentCourseWork;
+        saveCourseWork(changedCourse.id, { modules: normalizeModules(changedCourse.modules) })
+          .then(() => setCourseSyncMessage(''))
+          .catch((error) => {
+            setCourseSyncMessage(`Could not sync course content: ${error.message}`);
+          });
+      }
+    }
   }
 
   function updateInstructorCourses(updater) {
@@ -914,6 +1025,22 @@ function CoursesPage() {
     setAssignmentEditorMode(
       canManageContent ? (hasAssignmentDetails(item) ? 'view' : 'edit') : 'view',
     );
+
+    if (selectedCourse) {
+      const key = activityKey(selectedCourse.id, item.id);
+      const request = canManageContent
+        ? fetchAssignmentSubmissions(selectedCourse.id, item.id)
+        : fetchMyAssignmentSubmission(selectedCourse.id, item.id).then((submission) =>
+            submission ? [submission] : [],
+          );
+
+      request
+        .then((submissions) => {
+          setAssignmentSubmissionsByKey((prev) => ({ ...prev, [key]: submissions }));
+          setCourseSyncMessage('');
+        })
+        .catch((error) => setCourseSyncMessage(`Could not load assignment submissions: ${error.message}`));
+    }
   }
 
   function handleContentClick(moduleId, item) {
@@ -924,25 +1051,27 @@ function CoursesPage() {
     setQuizAnswers({});
     setQuizResult(null);
     setExpandedModuleIds((prev) => (prev.includes(moduleId) ? prev : [...prev, moduleId]));
+    if (isStudent && selectedCourse) {
+      openContent(selectedCourse.id, item.id).catch((error) =>
+        setCourseSyncMessage(`Could not record content activity: ${error.message}`),
+      );
+      saveContentTime(selectedCourse.id, item.id, 1).catch(() => {});
+    }
     markStudentItemCompleted(item.id);
   }
 
   function markStudentItemCompleted(itemId) {
     if (!isStudent || !selectedCourse) return;
-    setStudentProgress((prev) => {
-      const next = {
-        ...prev,
-        [userEmail]: {
-          ...(prev[userEmail] || {}),
-          [selectedCourse.id]: {
-            ...((prev[userEmail] || {})[selectedCourse.id] || {}),
-            [itemId]: true,
-          },
-        },
-      };
-      saveStoredStudentProgress(next);
-      return next;
-    });
+
+    saveProgressRequest(selectedCourse.id, itemId, true)
+      .then((updatedProgress) => {
+        setStudentProgress(updatedProgress);
+        saveStoredStudentProgress(updatedProgress);
+        setCourseSyncMessage('');
+      })
+      .catch((error) => {
+        setCourseSyncMessage(`Could not save progress: ${error.message}`);
+      });
   }
 
   function getQuizQuestions(quizItem) {
@@ -967,7 +1096,20 @@ function CoursesPage() {
     setQuizQuestionEditor([]);
     setQuizAnswers({});
     setQuizResult(null);
+    setQuizTimeoutNotice('');
     setExpandedModuleIds((prev) => (prev.includes(moduleId) ? prev : [...prev, moduleId]));
+
+    if (isStudent && selectedCourse) {
+      fetchMyQuizAttempts(selectedCourse.id, item.id)
+        .then((attempts) => {
+          setQuizAttemptsByKey((prev) => ({
+            ...prev,
+            [activityKey(selectedCourse.id, item.id)]: attempts,
+          }));
+          setCourseSyncMessage('');
+        })
+        .catch((error) => setCourseSyncMessage(`Could not load quiz attempts: ${error.message}`));
+    }
   }
 
   function startQuizAttempt() {
@@ -979,6 +1121,7 @@ function CoursesPage() {
 
     setQuizAnswers({});
     setQuizResult(null);
+    setQuizTimeoutNotice('');
     quizAttemptSubmittedRef.current = false;
     quizStartAtMsRef.current = Date.now();
     const limitMinutes = Number(selectedQuizItem?.timeLimitMinutes) > 0 ? Number(selectedQuizItem?.timeLimitMinutes) : 20;
@@ -992,6 +1135,7 @@ function CoursesPage() {
     quizStartAtMsRef.current = null;
     quizAttemptSubmittedRef.current = false;
     setQuizResult(null);
+    setQuizTimeoutNotice('');
   }
 
   function retryQuiz() {
@@ -1002,6 +1146,7 @@ function CoursesPage() {
     if (used >= max) return;
 
     setQuizResult(null);
+    setQuizTimeoutNotice('');
     setQuizAnswers({});
     quizAttemptSubmittedRef.current = false;
     quizStartAtMsRef.current = Date.now();
@@ -1160,6 +1305,19 @@ function CoursesPage() {
     const emailKey = (targetEmail || '').toLowerCase();
     if (!emailKey) return;
 
+    if (emailKey === userEmail) {
+      saveProgressRequest(courseId, itemId, completed)
+        .then((updatedProgress) => {
+          setStudentProgress(updatedProgress);
+          saveStoredStudentProgress(updatedProgress);
+          setCourseSyncMessage('');
+        })
+        .catch((error) => {
+          setCourseSyncMessage(`Could not save progress: ${error.message}`);
+        });
+      return;
+    }
+
     const userProgress = progress[emailKey] || {};
     const courseProgress = userProgress[courseId] || {};
 
@@ -1301,48 +1459,29 @@ function CoursesPage() {
       attemptNumber,
       maxAttempts,
     });
+    if (autoSubmitted) {
+      setQuizTimeoutNotice('Time is up. Your quiz was auto-submitted with your saved answers.');
+    }
     if (isStudent && selectedCourse && currentUser) {
-      updateInstructorCourses((prev) =>
-        prev.map((course) =>
-          course.id === selectedCourse.id
-            ? {
-                ...course,
-                modules: course.modules.map((module) =>
-                  module.id === selectedQuiz.moduleId
-                    ? {
-                        ...module,
-                        items: module.items.map((item) =>
-                          item.id === selectedQuiz.itemId
-                            ? {
-                                ...item,
-                                attempts: [
-                                  ...(item.attempts || []).filter(
-                                    (attempt) => attempt.studentEmail !== userEmail,
-                                  ),
-                                  {
-                                    studentEmail: userEmail,
-                                    studentName: currentUser.name || 'Student',
-                                    autoScore: score,
-                                    autoTotal: totalPoints,
-                                    score,
-                                    total: totalPoints,
-                                    percent,
-                                    submittedAt: new Date().toLocaleString(),
-                                    attemptCount: attemptCount + 1,
-                                    autoSubmitted,
-                                    instructorScoreOverridden: false,
-                                  },
-                                ],
-                              }
-                            : item,
-                        ),
-                      }
-                    : module,
-                ),
-              }
-            : course,
-        ),
-      );
+      submitQuizAttemptRequest(selectedCourse.id, selectedQuiz.itemId, {
+        answers,
+        startedAt: quizStartAtMsRef.current
+          ? new Date(quizStartAtMsRef.current).toISOString()
+          : undefined,
+        durationSeconds: quizStartAtMsRef.current
+          ? Math.floor((Date.now() - quizStartAtMsRef.current) / 1000)
+          : 0,
+        autoSubmitted,
+      })
+        .then((savedAttempt) => {
+          const key = activityKey(selectedCourse.id, selectedQuiz.itemId);
+          setQuizAttemptsByKey((prev) => ({
+            ...prev,
+            [key]: [...(prev[key] || []), savedAttempt],
+          }));
+          setCourseSyncMessage('');
+        })
+        .catch((error) => setCourseSyncMessage(`Could not save quiz attempt: ${error.message}`));
     }
     if (passed) {
       markStudentItemCompleted(selectedQuizItem.id);
@@ -1365,44 +1504,20 @@ function CoursesPage() {
   }
 
   function updateAssignmentSubmissionGrade(submissionId, gradeValue) {
-    setAssignmentDetailForm((prev) => ({
-      ...prev,
-      submissions: prev.submissions.map((submission) =>
-        submission.id === submissionId
-          ? { ...submission, gradeSubmission: gradeValue }
-          : submission,
-      ),
-    }));
-
     if (!selectedCourse || !selectedAssignment) return;
-    updateInstructorCourses((prev) =>
-      prev.map((course) =>
-        course.id === selectedCourse.id
-          ? {
-              ...course,
-              modules: course.modules.map((module) =>
-                module.id === selectedAssignment.moduleId
-                  ? {
-                      ...module,
-                      items: module.items.map((item) =>
-                        item.id === selectedAssignment.itemId
-                          ? {
-                              ...item,
-                              submissions: (item.submissions || []).map((submission) =>
-                                submission.id === submissionId
-                                  ? { ...submission, gradeSubmission: gradeValue }
-                                  : submission,
-                              ),
-                            }
-                          : item,
-                      ),
-                    }
-                  : module,
-              ),
-            }
-          : course,
-      ),
-    );
+
+    gradeAssignmentSubmission(submissionId, { grade: gradeValue })
+      .then((updatedSubmission) => {
+        const key = activityKey(selectedCourse.id, selectedAssignment.itemId);
+        setAssignmentSubmissionsByKey((prev) => ({
+          ...prev,
+          [key]: (prev[key] || []).map((submission) =>
+            submission._id === updatedSubmission._id ? updatedSubmission : submission,
+          ),
+        }));
+        setCourseSyncMessage('');
+      })
+      .catch((error) => setCourseSyncMessage(`Could not grade assignment: ${error.message}`));
   }
 
   async function handleStudentAssignmentUploadChange(event) {
@@ -1414,46 +1529,24 @@ function CoursesPage() {
 
   function submitStudentAssignment() {
     if (!selectedCourse || !selectedAssignment || !currentUser) return;
-    updateInstructorCourses((prev) =>
-      prev.map((course) =>
-        course.id === selectedCourse.id
-          ? {
-              ...course,
-              modules: course.modules.map((module) =>
-                module.id === selectedAssignment.moduleId
-                  ? {
-                      ...module,
-                      items: module.items.map((item) => {
-                        if (item.id !== selectedAssignment.itemId) return item;
-                        const currentSubmissions = item.submissions || [];
-                        const studentSubmission = {
-                          id: Date.now(),
-                          studentName: currentUser.name || 'Student',
-                          studentEmail: userEmail,
-                          submissionStatus: 'Submitted',
-                          submittedAt: new Date().toLocaleString(),
-                          submissionType: shouldAutoCloseSubmission(item.dueAt) ? 'Late submit' : 'On time',
-                          studentFiles: studentAssignmentUploadFiles,
-                          gradeSubmission: '',
-                        };
-                        return {
-                          ...item,
-                          submissions: [
-                            ...currentSubmissions.filter(
-                              (submission) => submission.studentEmail !== userEmail,
-                            ),
-                            studentSubmission,
-                          ],
-                        };
-                      }),
-                    }
-                  : module,
-              ),
-            }
-          : course,
-      ),
-    );
-    setStudentAssignmentUploadFiles([]);
+
+    submitAssignmentRequest(selectedCourse.id, selectedAssignment.itemId, {
+      files: studentAssignmentUploadFiles,
+      dueAt: selectedAssignmentItem?.dueAt,
+    })
+      .then((submission) => {
+        const key = activityKey(selectedCourse.id, selectedAssignment.itemId);
+        setAssignmentSubmissionsByKey((prev) => ({
+          ...prev,
+          [key]: [
+            ...(prev[key] || []).filter((item) => item._id !== submission._id),
+            submission,
+          ],
+        }));
+        setStudentAssignmentUploadFiles([]);
+        setCourseSyncMessage('');
+      })
+      .catch((error) => setCourseSyncMessage(`Could not submit assignment: ${error.message}`));
   }
 
   function saveAssignmentDetails() {
@@ -1519,6 +1612,8 @@ function CoursesPage() {
 
       <div className="dashboardMain">
         <main className="dashboardContent coursesPageContent">
+          {courseSyncMessage && <p className="errorText formError">{courseSyncMessage}</p>}
+
           {!selectedCourse ? (
             <section className="dashboardPanel">
               <h3>No course selected</h3>
@@ -1802,18 +1897,19 @@ function CoursesPage() {
                           <span>Grade Submission</span>
                       </div>
                         {enrolledStudentsForSelectedCourse.map((student) => {
-                          const submission = (selectedAssignmentItem.submissions || []).find(
-                            (item) => item.studentEmail === student.email.toLowerCase(),
-                          );
+                          const submission = selectedAssignmentSubmissions.find((item) => {
+                            const email = item.student?.email || item.studentEmail;
+                            return email === student.email.toLowerCase();
+                          });
                           return (
                           <div key={student.email} className="assignmentTableRow">
                             <span>{student.name}</span>
-                            <span>{submission?.submissionStatus || 'Not yet submitted'}</span>
-                            <span>{submission?.submittedAt || 'N/A'}</span>
-                            <span>{submission?.submissionType || 'N/A'}</span>
+                            <span>{submission ? 'Submitted' : 'Not yet submitted'}</span>
+                            <span>{submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'N/A'}</span>
+                            <span>{submission?.status === 'late' ? 'Late submit' : submission ? 'On time' : 'N/A'}</span>
                             <span>
-                              {submission?.studentFiles?.length ? (
-                                submission.studentFiles.map((file) => (
+                              {submission?.files?.length ? (
+                                submission.files.map((file) => (
                                   <button
                                     key={file.id}
                                     type="button"
@@ -1831,10 +1927,10 @@ function CoursesPage() {
                               <input
                                 className="assignmentGradeInput"
                                 type="text"
-                                value={submission?.gradeSubmission || ''}
+                                value={submission?.grade || ''}
                                 onChange={(event) =>
                                   submission &&
-                                  updateAssignmentSubmissionGrade(submission.id, event.target.value)
+                                  updateAssignmentSubmissionGrade(submission._id, event.target.value)
                                 }
                                 placeholder="e.g. 8/10"
                                 readOnly={!canManageContent}
@@ -2295,6 +2391,12 @@ function CoursesPage() {
                     </section>
                   ) : (
                     <div className="assignmentDetailPanel">
+                      {quizTimeoutNotice && (
+                        <div className="dashboardFeedback" role="alert">
+                          <strong>{quizTimeoutNotice}</strong>
+                        </div>
+                      )}
+
                       <div className="dashboardFeedback" aria-live="polite">
                         Time left: {quizTimeLeftSec === null ? '00:00' : formatSecondsAsMMSS(quizTimeLeftSec)}
                       </div>

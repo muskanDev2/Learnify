@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -12,36 +12,15 @@ import Card from './Card';
 import DashboardChartCard from './DashboardChartCard';
 import SectionContainer from './SectionContainer';
 import { adminEnrollmentByCourse, adminRoleFrequencies } from '../utils/dashboardStats';
-import { getStoredUsers, isInstructor, isStudent } from '../utils/authUtils';
-
-const COURSES_KEY = 'learnify_courses';
-const ENROLLMENTS_KEY = 'learnify_enrollments';
+import { isInstructor, isStudent } from '../utils/authUtils';
+import { fetchCourses } from '../utils/courseApi';
+import { fetchEnrollments } from '../utils/enrollmentApi';
+import { fetchUsers } from '../utils/userApi';
+import { fetchAdminUserStats } from '../utils/adminStatsApi';
 
 const BAR_PRIMARY = '#2563eb';
 const AXIS = '#64748b';
 const GRID = '#e2e8f0';
-
-function getStoredCourses() {
-  const raw = localStorage.getItem(COURSES_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function getStoredEnrollments() {
-  const raw = localStorage.getItem(ENROLLMENTS_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 function RoleTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -67,9 +46,21 @@ function EnrollmentTooltip({ active, payload }) {
 }
 
 export default function AdminDashboard() {
-  const users = getStoredUsers();
-  const courses = getStoredCourses();
-  const enrollments = getStoredEnrollments();
+  const [users, setUsers] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [enrollments, setEnrollments] = useState({});
+  const [userStats, setUserStats] = useState(null);
+
+  useEffect(() => {
+    Promise.all([fetchUsers(), fetchCourses(), fetchEnrollments(), fetchAdminUserStats()])
+      .then(([apiUsers, apiCourses, apiEnrollments, apiUserStats]) => {
+        setUsers(apiUsers);
+        setCourses(apiCourses);
+        setEnrollments(apiEnrollments);
+        setUserStats(apiUserStats);
+      })
+      .catch(() => {});
+  }, []);
   const totalStudents = users.filter((user) => isStudent(user)).length;
   const totalInstructors = users.filter((user) => isInstructor(user)).length;
 
@@ -103,17 +94,17 @@ export default function AdminDashboard() {
       <div className="dashboardQuickGrid">
         <Card
           title="Total Students"
-          value={String(totalStudents)}
+          value={String(userStats?.students ?? totalStudents)}
           description={totalStudents ? 'Registered student accounts.' : 'No student accounts yet.'}
         />
         <Card
           title="Total Instructors"
-          value={String(totalInstructors)}
+          value={String(userStats?.instructors ?? totalInstructors)}
           description={totalInstructors ? 'Registered instructor accounts.' : 'No instructor accounts yet.'}
         />
         <Card
           title="Total Users"
-          value={String(users.length)}
+          value={String(userStats?.totalUsers ?? users.length)}
           description={users.length ? 'Registered users in system.' : 'No registered users yet.'}
         />
         <Card

@@ -1,5 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getCurrentUser, getStoredUsers, isAdmin } from '../utils/authUtils';
+import {
+  deleteUser as deleteUserRequest,
+  fetchUsers,
+  updateUser as updateUserRequest,
+} from '../utils/userApi';
 
 const USERS_KEY = 'learnify_users';
 
@@ -39,6 +44,25 @@ export default function AdminUsersPanel() {
     profileImage: '',
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchUsers()
+      .then((apiUsers) => {
+        if (!isMounted) return;
+        const normalized = normalizeUsers(apiUsers);
+        setUsers(normalized);
+        saveUsers(normalized);
+      })
+      .catch((error) => {
+        if (isMounted) setMessage({ type: 'error', text: error.message });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const filteredUsers = useMemo(() => {
     const withPosition = users.map((user, index) => ({ ...user, __position: index }));
 
@@ -77,7 +101,7 @@ export default function AdminUsersPanel() {
     setMessage({ type: 'error', text });
   }
 
-  function applyRoleChange(targetEmail, nextRole) {
+  async function applyRoleChange(targetEmail, nextRole) {
     const emailKey = (targetEmail || '').toLowerCase();
     const roleKey = String(nextRole || '').toLowerCase();
     const targetUser = users.find((user) => (user.email || '').toLowerCase() === emailKey);
@@ -107,10 +131,15 @@ export default function AdminUsersPanel() {
       }
     }
 
-    const nextUsers = users.map((user) =>
-      (user.email || '').toLowerCase() === emailKey ? { ...user, role: roleKey } : user,
-    );
-    persistAndSetUsers(nextUsers, 'User role updated successfully.');
+    try {
+      const updatedUser = await updateUserRequest(targetUser.id, { role: roleKey });
+      const nextUsers = users.map((user) =>
+        (user.email || '').toLowerCase() === emailKey ? updatedUser : user,
+      );
+      persistAndSetUsers(nextUsers, 'User role updated successfully.');
+    } catch (error) {
+      blockAction(error.message || 'User role could not be updated.');
+    }
   }
 
   function handleRoleChangeRequest(targetEmail, nextRole) {
@@ -123,7 +152,7 @@ export default function AdminUsersPanel() {
     setPendingRoleChange(null);
   }
 
-  function toggleUserActiveState(targetEmail, shouldActivate) {
+  async function toggleUserActiveState(targetEmail, shouldActivate) {
     const emailKey = (targetEmail || '').toLowerCase();
     const targetUser = users.find((user) => (user.email || '').toLowerCase() === emailKey);
     if (!targetUser) return;
@@ -133,18 +162,21 @@ export default function AdminUsersPanel() {
       return;
     }
 
-    const nextUsers = users.map((user) =>
-      (user.email || '').toLowerCase() === emailKey
-        ? { ...user, active: shouldActivate }
-        : user,
-    );
-    persistAndSetUsers(
-      nextUsers,
-      shouldActivate ? 'User activated successfully.' : 'User deactivated successfully.',
-    );
+    try {
+      const updatedUser = await updateUserRequest(targetUser.id, { active: shouldActivate });
+      const nextUsers = users.map((user) =>
+        (user.email || '').toLowerCase() === emailKey ? updatedUser : user,
+      );
+      persistAndSetUsers(
+        nextUsers,
+        shouldActivate ? 'User activated successfully.' : 'User deactivated successfully.',
+      );
+    } catch (error) {
+      blockAction(error.message || 'User status could not be updated.');
+    }
   }
 
-  function deleteUser(targetEmail) {
+  async function deleteUser(targetEmail) {
     const emailKey = (targetEmail || '').toLowerCase();
     const targetUser = users.find((user) => (user.email || '').toLowerCase() === emailKey);
     if (!targetUser) return;
@@ -154,8 +186,13 @@ export default function AdminUsersPanel() {
       return;
     }
 
-    const nextUsers = users.filter((user) => (user.email || '').toLowerCase() !== emailKey);
-    persistAndSetUsers(nextUsers, 'User deleted successfully.');
+    try {
+      await deleteUserRequest(targetUser.id);
+      const nextUsers = users.filter((user) => (user.email || '').toLowerCase() !== emailKey);
+      persistAndSetUsers(nextUsers, 'User deleted successfully.');
+    } catch (error) {
+      blockAction(error.message || 'User could not be deleted.');
+    }
   }
 
   function openProfileModal(user) {
@@ -198,7 +235,7 @@ export default function AdminUsersPanel() {
     reader.readAsDataURL(file);
   }
 
-  function saveProfileEdits() {
+  async function saveProfileEdits() {
     if (!selectedProfileUser) return;
     const selectedEmail = (selectedProfileUser.email || '').toLowerCase();
     const selectedIsAdmin = isAdmin(selectedProfileUser);
@@ -223,11 +260,8 @@ export default function AdminUsersPanel() {
       return;
     }
 
-    const nextUsers = users.map((user) => {
-      const userEmail = (user.email || '').toLowerCase();
-      if (userEmail !== selectedEmail) return user;
-      return {
-        ...user,
+    try {
+      const updatedUser = await updateUserRequest(selectedProfileUser.id, {
         name: profileForm.name.trim(),
         email: nextEmail,
         role: (profileForm.role || 'student').toLowerCase(),
@@ -237,17 +271,20 @@ export default function AdminUsersPanel() {
         address: profileForm.address,
         country: profileForm.country,
         profileImage: profileForm.profileImage || '',
-      };
-    });
+      });
 
-    setUsers(nextUsers);
-    saveUsers(nextUsers);
+      const nextUsers = users.map((user) =>
+        (user.email || '').toLowerCase() === selectedEmail ? updatedUser : user,
+      );
 
-    const updatedSelected =
-      nextUsers.find((user) => (user.email || '').toLowerCase() === nextEmail) || null;
-    setSelectedProfileUser(updatedSelected);
-    setIsProfileEditMode(false);
-    setMessage({ type: 'success', text: 'Profile updated successfully.' });
+      setUsers(nextUsers);
+      saveUsers(nextUsers);
+      setSelectedProfileUser(updatedUser);
+      setIsProfileEditMode(false);
+      setMessage({ type: 'success', text: 'Profile updated successfully.' });
+    } catch (error) {
+      blockAction(error.message || 'Profile could not be updated.');
+    }
   }
 
   return (

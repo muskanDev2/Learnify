@@ -1,5 +1,8 @@
+import { apiFetch } from './api';
+
 const USERS_KEY = 'learnify_users';
 const CURRENT_USER_KEY = 'learnify_current_user';
+const AUTH_TOKEN_KEY = 'learnify_auth_token';
 const TEST_ADMIN_USER = {
   name: 'Learnify Admin',
   email: 'admin@learnify.test',
@@ -101,47 +104,42 @@ function normalizeUsersWithDefaultActive(users) {
   return normalized;
 }
 
-export function registerUser(userData) {
-  // Prevent duplicate account creation by email.
-  const users = getStoredUsers();
-  const duplicateUser = users.find(
-    (user) => user.email.toLowerCase() === userData.email.toLowerCase(),
-  );
+export async function registerUser(userData) {
+  try {
+    const result = await apiFetch('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+        role: userData.role,
+      }),
+    });
 
-  if (duplicateUser) {
-    return { ok: false, message: 'This email is already registered.' };
+    return { ok: true, user: result.user, message: result.message || 'Registration successful!' };
+  } catch (error) {
+    return { ok: false, message: error.message || 'Registration failed. Please try again.' };
   }
-
-  const userToSave = {
-    name: userData.name.trim(),
-    email: userData.email.trim().toLowerCase(),
-    password: userData.password,
-    role: userData.role,
-    active: true,
-  };
-
-  setStoredUsers([...users, userToSave]);
-  return { ok: true, message: 'Registration successful!' };
 }
 
-export function loginUser(loginData) {
-  // Basic temporary auth: match user from localStorage list.
-  const users = getStoredUsers();
-  const matchedUser = users.find(
-    (user) =>
-      user.email.toLowerCase() === loginData.email.trim().toLowerCase() &&
-      user.password === loginData.password,
-  );
+export async function loginUser(loginData) {
+  try {
+    const result = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: loginData.email,
+        password: loginData.password,
+      }),
+    });
 
-  if (!matchedUser) {
-    return { ok: false, message: 'Invalid email or password.' };
+    if (result.token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, result.token);
+    }
+
+    return { ok: true, user: result.user, message: result.message || 'Login successful!' };
+  } catch (error) {
+    return { ok: false, message: error.message || 'Invalid email or password.' };
   }
-
-  if (matchedUser.active === false) {
-    return { ok: false, message: 'Your account is deactivated. Contact admin.' };
-  }
-
-  return { ok: true, user: matchedUser, message: 'Login successful!' };
 }
 
 export function getCurrentUser() {
@@ -157,6 +155,15 @@ export function getCurrentUser() {
 
 export function setCurrentUser(user) {
   localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+}
+
+export function getAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function clearAuthSession() {
+  localStorage.removeItem(CURRENT_USER_KEY);
+  localStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
 export function updateCurrentUserProfile(profileUpdates) {

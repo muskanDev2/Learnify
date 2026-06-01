@@ -1,42 +1,9 @@
-import { useMemo } from 'react';
-import { getStoredUsers } from '../utils/authUtils';
-
-const COURSES_KEY = 'learnify_courses';
-const ENROLLMENTS_KEY = 'learnify_enrollments';
-const STUDENT_PROGRESS_KEY = 'learnify_student_progress';
-
-function getStoredCourses() {
-  const raw = localStorage.getItem(COURSES_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function getStoredEnrollments() {
-  const raw = localStorage.getItem(ENROLLMENTS_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function getStoredStudentProgress() {
-  const raw = localStorage.getItem(STUDENT_PROGRESS_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
+import { useEffect, useMemo, useState } from 'react';
+import { fetchCourses } from '../utils/courseApi';
+import { fetchEnrollments } from '../utils/enrollmentApi';
+import { fetchProgress } from '../utils/progressApi';
+import { fetchUsers } from '../utils/userApi';
+import { fetchAdminProgressStats } from '../utils/adminStatsApi';
 
 function getCourseItemCount(course) {
   return (course.modules || []).reduce(
@@ -46,10 +13,29 @@ function getCourseItemCount(course) {
 }
 
 export default function AdminReportsPanel() {
-  const users = getStoredUsers();
-  const courses = getStoredCourses();
-  const enrollments = getStoredEnrollments();
-  const studentProgress = getStoredStudentProgress();
+  const [users, setUsers] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [enrollments, setEnrollments] = useState({});
+  const [studentProgress, setStudentProgress] = useState({});
+  const [progressStats, setProgressStats] = useState(null);
+
+  useEffect(() => {
+    Promise.all([
+      fetchUsers(),
+      fetchCourses(),
+      fetchEnrollments(),
+      fetchProgress(),
+      fetchAdminProgressStats(),
+    ])
+      .then(([apiUsers, apiCourses, apiEnrollments, apiProgress, apiProgressStats]) => {
+        setUsers(apiUsers);
+        setCourses(apiCourses);
+        setEnrollments(apiEnrollments);
+        setStudentProgress(apiProgress);
+        setProgressStats(apiProgressStats);
+      })
+      .catch(() => {});
+  }, []);
 
   const ownerNameByEmail = useMemo(() => {
     const map = new Map();
@@ -98,6 +84,23 @@ export default function AdminReportsPanel() {
     <div className="dashboardPanel">
       <h3>Reports</h3>
       <p>Simple per-course enrollment and completion overview.</p>
+
+      {progressStats && (
+        <div className="dashboardQuickGrid">
+          <article className="dashboardStatCard">
+            <h4>Total Enrollments</h4>
+            <p>{progressStats.totalEnrollments}</p>
+          </article>
+          <article className="dashboardStatCard">
+            <h4>Average Progress</h4>
+            <p>{progressStats.averageProgressPercent}%</p>
+          </article>
+          <article className="dashboardStatCard">
+            <h4>Completed Courses</h4>
+            <p>{progressStats.completedCourses}</p>
+          </article>
+        </div>
+      )}
 
       <section className="adminUsersTable adminUsersTableWide">
         <div className="adminUsersTableHeader adminReportsTableHeaderWide">

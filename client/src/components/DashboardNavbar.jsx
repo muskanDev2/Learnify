@@ -8,6 +8,7 @@ import {
   FaChevronDown,
 } from 'react-icons/fa6';
 import styles from './DashboardNavbar.module.css';
+import { clearAuthSession } from '../utils/authUtils';
 
 // Read logged-in user for the top bar (frontend-only; same key as LoginPage).
 function getCurrentUser() {
@@ -75,7 +76,7 @@ export default function DashboardNavbar() {
   }
 
   function handleLogout() {
-    localStorage.removeItem('learnify_current_user');
+    clearAuthSession();
     setIsMenuOpen(false);
     setActiveInfoMenu(null);
     navigate('/', { replace: true });

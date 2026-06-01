@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -16,47 +16,14 @@ import {
   studentAssignmentDueBuckets,
   studentCompletionByCourse,
 } from '../utils/dashboardStats';
-
-const COURSES_KEY = 'learnify_courses';
-const ENROLLMENTS_KEY = 'learnify_enrollments';
-const STUDENT_PROGRESS_KEY = 'learnify_student_progress';
+import { getCurrentUser } from '../utils/authUtils';
+import { fetchCourses } from '../utils/courseApi';
+import { fetchEnrollments } from '../utils/enrollmentApi';
+import { fetchProgress } from '../utils/progressApi';
 
 const BAR_FILL = '#2563eb';
 const AXIS = '#64748b';
 const GRID = '#e2e8f0';
-
-function getStoredCourses() {
-  const raw = localStorage.getItem(COURSES_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function getStoredEnrollments() {
-  const raw = localStorage.getItem(ENROLLMENTS_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function getStoredStudentProgress() {
-  const raw = localStorage.getItem(STUDENT_PROGRESS_KEY);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 function CompletionTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -84,13 +51,24 @@ function DueBucketTooltip({ active, payload }) {
 }
 
 export default function StudentDashboard() {
-  const currentUser = JSON.parse(localStorage.getItem('learnify_current_user') || 'null');
+  const currentUser = getCurrentUser();
   const studentEmail = (currentUser?.email || '').toLowerCase();
-  const enrollments = getStoredEnrollments();
+  const [enrollments, setEnrollments] = useState({});
+  const [allCourses, setAllCourses] = useState([]);
+  const [studentProgress, setStudentProgress] = useState({});
+
+  useEffect(() => {
+    Promise.all([fetchCourses(), fetchEnrollments(), fetchProgress()])
+      .then(([apiCourses, apiEnrollments, apiProgress]) => {
+        setAllCourses(apiCourses);
+        setEnrollments(apiEnrollments);
+        setStudentProgress(apiProgress);
+      })
+      .catch(() => {});
+  }, []);
+
   const enrolledIds = enrollments[studentEmail] || [];
-  const allCourses = getStoredCourses();
   const enrolledCourses = allCourses.filter((course) => enrolledIds.includes(course.id));
-  const studentProgress = getStoredStudentProgress();
 
   const assignmentItems = enrolledCourses.flatMap((course) =>
     (course.modules || []).flatMap((module) =>

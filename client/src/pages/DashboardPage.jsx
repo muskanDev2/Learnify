@@ -9,7 +9,14 @@ import InstructorDashboard from '../components/InstructorDashboard';
 import InstructorCoursesPanel from '../components/InstructorCoursesPanel';
 import StudentCoursesPanel from '../components/StudentCoursesPanel';
 import StudentDashboard from '../components/StudentDashboard';
-import { getCurrentRole, getStoredUsers, isAdmin, isInstructor, isStudent } from '../utils/authUtils';
+import {
+  clearAuthSession,
+  getCurrentRole,
+  getStoredUsers,
+  isAdmin,
+  isInstructor,
+  isStudent,
+} from '../utils/authUtils';
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -117,7 +124,7 @@ function DashboardPage() {
   }
 
   function handleConfirmBackLogout() {
-    localStorage.removeItem('learnify_current_user');
+    clearAuthSession();
     setShowBackLogoutConfirm(false);
     navigate('/', { replace: true });
   }
