@@ -9,7 +9,7 @@ const { connectDatabase } = require('../config/database');
 const { recalculateCourseProgress } = require('./lmsProgress');
 
 const today = new Date().toISOString().slice(0, 10);
-
+  //just to check the changes
 const demoUsers = [
   {
     name: 'Dr. Hina Siddiqui',
