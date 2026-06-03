@@ -7,8 +7,10 @@ import AdminUsersPanel from '../components/AdminUsersPanel';
 import AdminReportsPanel from '../components/AdminReportsPanel';
 import InstructorDashboard from '../components/InstructorDashboard';
 import InstructorCoursesPanel from '../components/InstructorCoursesPanel';
+import InstructorStudentsPanel from '../components/InstructorStudentsPanel';
 import StudentCoursesPanel from '../components/StudentCoursesPanel';
 import StudentDashboard from '../components/StudentDashboard';
+import StudentProgressPanel from '../components/StudentProgressPanel';
 import {
   clearAuthSession,
   getCurrentRole,
@@ -153,8 +155,12 @@ function DashboardPage() {
         renderRoleDashboard()
       ) : isInstructor(currentUser) && validActiveMenu === 'my-courses' ? (
         <InstructorCoursesPanel />
+      ) : isInstructor(currentUser) && validActiveMenu === 'students' ? (
+        <InstructorStudentsPanel />
       ) : isStudent(currentUser) && validActiveMenu === 'my-courses' ? (
         <StudentCoursesPanel />
+      ) : isStudent(currentUser) && validActiveMenu === 'progress' ? (
+        <StudentProgressPanel />
       ) : isAdmin(currentUser) && validActiveMenu === 'users' ? (
         <AdminUsersPanel />
       ) : isAdmin(currentUser) && validActiveMenu === 'courses' ? (

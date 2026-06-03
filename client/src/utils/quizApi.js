@@ -12,3 +12,9 @@ export function fetchMyQuizAttempts(courseId, quizItemId) {
     (result) => result.data || [],
   );
 }
+
+export function fetchQuizAttempts(courseId, quizItemId) {
+  return apiFetch(`/api/quizzes/${courseId}/${quizItemId}/attempts`).then(
+    (result) => result.data || [],
+  );
+}

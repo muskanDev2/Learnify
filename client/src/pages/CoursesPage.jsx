@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   getCurrentUser,
-  getStoredUsers,
   isAdmin as checkAdmin,
   isInstructor as checkInstructor,
   isStudent as checkStudent,
@@ -18,13 +17,19 @@ import {
   saveContentTime,
   saveProgress as saveProgressRequest,
 } from '../utils/progressApi';
-import { fetchMyQuizAttempts, submitQuizAttempt as submitQuizAttemptRequest } from '../utils/quizApi';
+import {
+  fetchMyQuizAttempts,
+  fetchQuizAttempts,
+  submitQuizAttempt as submitQuizAttemptRequest,
+} from '../utils/quizApi';
 import {
   fetchAssignmentSubmissions,
   fetchMyAssignmentSubmission,
   gradeAssignmentSubmission,
   submitAssignment as submitAssignmentRequest,
 } from '../utils/assignmentApi';
+import { fetchEnrollments } from '../utils/enrollmentApi';
+import { fetchStudents } from '../utils/userApi';
 import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
 
 const COURSES_KEY = 'learnify_courses';
@@ -73,6 +78,11 @@ function getStoredEnrollments() {
   } catch {
     return {};
   }
+}
+
+function saveStoredEnrollments(enrollments) {
+  localStorage.setItem(ENROLLMENTS_KEY, JSON.stringify(enrollments || {}));
+  syncLmsSnapshotFromLocalSoon();
 }
 
 function getStoredStudentProgress() {
@@ -226,6 +236,10 @@ function formatSecondsAsMMSS(totalSeconds) {
   return `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
 }
 
+function getAttemptStudentEmail(attempt) {
+  return String(attempt?.student?.email || attempt?.studentEmail || '').toLowerCase();
+}
+
 function getItemIconLabel(item) {
   if (item.type === 'assignment') return 'A';
   if (item.type === 'quiz') return 'Q';
@@ -312,7 +326,8 @@ function CoursesPage() {
     return 'my-courses';
   }, [currentUser]);
   const userEmail = (currentUser?.email || '').toLowerCase();
-  const allEnrollments = getStoredEnrollments();
+  const [allEnrollments, setAllEnrollments] = useState(() => getStoredEnrollments());
+  const [students, setStudents] = useState([]);
   const studentEnrolledIds = allEnrollments[userEmail] || [];
   const studentEnrolledIdsKey = studentEnrolledIds.join(',');
   const requestedCourseId = location.state?.courseId || null;
@@ -363,7 +378,6 @@ function CoursesPage() {
   // Holds the active countdown interval id so submitQuiz can pause the timer immediately.
   const quizTimerIdRef = useRef(null);
   const [studentAssignmentUploadFiles, setStudentAssignmentUploadFiles] = useState([]);
-  const [quizAttemptGradeEdits, setQuizAttemptGradeEdits] = useState({});
   const [assignmentDetailForm, setAssignmentDetailForm] = useState({
     instructions: '',
     gradingStatus: 'Not graded',
@@ -474,6 +488,28 @@ function CoursesPage() {
     return (selectedQuizItem.attempts || []).find((attempt) => attempt.studentEmail === userEmail) || null;
   }, [isStudent, quizAttemptsByKey, selectedCourse, selectedQuizItem, userEmail]);
 
+  const latestQuizAttemptByEmail = useMemo(() => {
+    if (!selectedCourse || !selectedQuizItem) return {};
+
+    const key = activityKey(selectedCourse.id, selectedQuizItem.id);
+    const attempts = quizAttemptsByKey[key] || [];
+
+    return attempts.reduce((map, attempt) => {
+      const email = getAttemptStudentEmail(attempt);
+      if (!email) return map;
+
+      const current = map[email];
+      const currentAttemptNo = Number(current?.attemptNo) || 0;
+      const nextAttemptNo = Number(attempt.attemptNo) || 0;
+
+      if (!current || nextAttemptNo >= currentAttemptNo) {
+        map[email] = attempt;
+      }
+
+      return map;
+    }, {});
+  }, [quizAttemptsByKey, selectedCourse, selectedQuizItem]);
+
   const selectedAssignmentSubmissions = useMemo(() => {
     if (!selectedCourse || !selectedAssignmentItem) return [];
     return (
@@ -485,11 +521,10 @@ function CoursesPage() {
 
   const enrolledStudentsForSelectedCourse = useMemo(() => {
     if (!selectedCourse) return [];
-    const users = getStoredUsers();
-    return users.filter((user) =>
+    return students.filter((user) =>
       (allEnrollments[user.email?.toLowerCase()] || []).includes(selectedCourse.id),
     );
-  }, [allEnrollments, selectedCourse]);
+  }, [allEnrollments, selectedCourse, students]);
 
   const activeContentFile = useMemo(() => {
     if (!selectedContentItem?.files?.length) return null;
@@ -538,9 +573,11 @@ function CoursesPage() {
 
     async function loadCoursePageDataFromApi() {
       try {
-        const [apiCourses, apiProgress] = await Promise.all([
+        const [apiCourses, apiProgress, apiEnrollments, apiStudents] = await Promise.all([
           fetchCourses(),
           fetchProgress(),
+          fetchEnrollments(),
+          canManageContent ? fetchStudents() : Promise.resolve([]),
         ]);
         if (!isMounted) return;
 
@@ -548,7 +585,7 @@ function CoursesPage() {
           .filter((course) => {
             if (isAdmin) return true;
             if (isInstructor) return (course.ownerEmail || '').toLowerCase() === userEmail;
-            if (isStudent) return studentEnrolledIds.includes(course.id);
+            if (isStudent) return (apiEnrollments[userEmail] || []).includes(course.id);
             return false;
           })
           .map((course) => ({
@@ -557,8 +594,11 @@ function CoursesPage() {
           }));
 
         setCourses(visibleCourses);
+        setAllEnrollments(apiEnrollments);
+        setStudents(apiStudents);
         setStudentProgress(apiProgress);
         saveStoredCourses(apiCourses);
+        saveStoredEnrollments(apiEnrollments);
         saveStoredStudentProgress(apiProgress);
         setCourseSyncMessage('');
       } catch (error) {
@@ -573,7 +613,7 @@ function CoursesPage() {
     return () => {
       isMounted = false;
     };
-  }, [isAdmin, isInstructor, isStudent, studentEnrolledIdsKey, userEmail]);
+  }, [canManageContent, isAdmin, isInstructor, isStudent, studentEnrolledIdsKey, userEmail]);
 
   function persistInstructorCourses(updatedCourses) {
     const allStored = getStoredCourses();
@@ -1099,8 +1139,10 @@ function CoursesPage() {
     setQuizTimeoutNotice('');
     setExpandedModuleIds((prev) => (prev.includes(moduleId) ? prev : [...prev, moduleId]));
 
-    if (isStudent && selectedCourse) {
-      fetchMyQuizAttempts(selectedCourse.id, item.id)
+    if (selectedCourse) {
+      const loadAttempts = canManageContent ? fetchQuizAttempts : fetchMyQuizAttempts;
+
+      loadAttempts(selectedCourse.id, item.id)
         .then((attempts) => {
           setQuizAttemptsByKey((prev) => ({
             ...prev,
@@ -1298,110 +1340,6 @@ function CoursesPage() {
       }),
     );
     cancelQuizQuestionsEditor();
-  }
-
-  function setStudentProgressCompletionFor(targetEmail, courseId, itemId, completed) {
-    const progress = getStoredStudentProgress();
-    const emailKey = (targetEmail || '').toLowerCase();
-    if (!emailKey) return;
-
-    if (emailKey === userEmail) {
-      saveProgressRequest(courseId, itemId, completed)
-        .then((updatedProgress) => {
-          setStudentProgress(updatedProgress);
-          saveStoredStudentProgress(updatedProgress);
-          setCourseSyncMessage('');
-        })
-        .catch((error) => {
-          setCourseSyncMessage(`Could not save progress: ${error.message}`);
-        });
-      return;
-    }
-
-    const userProgress = progress[emailKey] || {};
-    const courseProgress = userProgress[courseId] || {};
-
-    progress[emailKey] = {
-      ...userProgress,
-      [courseId]: {
-        ...courseProgress,
-        [itemId]: Boolean(completed),
-      },
-    };
-
-    saveStoredStudentProgress(progress);
-  }
-
-  function updateQuizAttemptOverride(studentEmail, nextScoreValue) {
-    if (!selectedCourse || !selectedQuiz || !selectedQuizItem) return;
-
-    const emailKey = (studentEmail || '').toLowerCase();
-    const parsed = Number(nextScoreValue);
-    if (!emailKey || !Number.isFinite(parsed) || parsed < 0) return;
-
-    const attempt = (selectedQuizItem.attempts || []).find((a) => (a.studentEmail || '').toLowerCase() === emailKey);
-
-    const totalFromAttempt =
-      attempt?.autoTotal ?? attempt?.total ?? null;
-
-    const computedTotal =
-      Array.isArray(selectedQuizItem.questions) && selectedQuizItem.questions.length
-        ? selectedQuizItem.questions.reduce((sum, q) => {
-            const p = Number.isFinite(Number(q.points)) ? Number(q.points) : 1;
-            return sum + (p > 0 ? p : 1);
-          }, 0)
-        : 0;
-
-    const nextTotal = totalFromAttempt || computedTotal;
-    if (!nextTotal) return;
-
-    const clamped = Math.max(0, Math.min(nextTotal, parsed));
-    const percent = Math.round((clamped / nextTotal) * 100);
-    const passed = percent >= 50;
-
-    updateInstructorCourses((prev) =>
-      prev.map((course) => {
-        if (course.id !== selectedCourse.id) return course;
-
-        return {
-          ...course,
-          modules: course.modules.map((module) => {
-            if (module.id !== selectedQuiz.moduleId) return module;
-
-            return {
-              ...module,
-              items: module.items.map((item) => {
-                if (item.id !== selectedQuiz.itemId) return item;
-
-                return {
-                  ...item,
-                  attempts: (item.attempts || []).map((a) => {
-                    if ((a.studentEmail || '').toLowerCase() !== emailKey) return a;
-                    return {
-                      ...a,
-                      score: clamped,
-                      total: nextTotal,
-                      percent,
-                      passed,
-                      instructorScoreOverridden: true,
-                    };
-                  }),
-                };
-              }),
-            };
-          }),
-        };
-      }),
-    );
-
-    setStudentProgressCompletionFor(emailKey, selectedCourse.id, selectedQuiz.itemId, passed);
-  }
-
-  function applyQuizAttemptOverride(studentEmail) {
-    const emailKey = (studentEmail || '').toLowerCase();
-    const draft = quizAttemptGradeEdits[emailKey];
-    if (draft === undefined || draft === '') return;
-    updateQuizAttemptOverride(emailKey, draft);
   }
 
   function updateQuizAnswer(questionId, optionIndex) {
@@ -2243,53 +2181,26 @@ function CoursesPage() {
                         <span>Details</span>
                       </div>
                       {enrolledStudentsForSelectedCourse.map((student) => {
-                        const attempt = (selectedQuizItem.attempts || []).find(
-                          (item) => item.studentEmail === student.email.toLowerCase(),
-                        );
                         const emailKey = student.email.toLowerCase();
-                        const draftScore =
-                          quizAttemptGradeEdits[emailKey] !== undefined
-                            ? quizAttemptGradeEdits[emailKey]
-                            : attempt?.score ?? '';
+                        const attempt = latestQuizAttemptByEmail[emailKey];
+                        const score = attempt?.score ?? '';
+                        const total = attempt?.totalMarks ?? attempt?.total ?? '';
+                        const percent = attempt?.percentage ?? attempt?.percent;
                         return (
                           <div key={student.email} className="assignmentTableRow">
                             <span>{student.name}</span>
                             <span>{attempt ? 'Submitted' : 'Not attempted'}</span>
-                            <span>{attempt?.submittedAt || 'N/A'}</span>
-                            <span>
-                              {attempt ? (
-                                <input
-                                  className="assignmentGradeInput"
-                                  type="number"
-                                  min="0"
-                                  value={draftScore}
-                                  onChange={(event) =>
-                                    setQuizAttemptGradeEdits((prev) => ({
-                                      ...prev,
-                                      [emailKey]: event.target.value,
-                                    }))
-                                  }
-                                  aria-label={`Override score for ${student.name}`}
-                                />
-                              ) : (
-                                'N/A'
-                              )}
-                            </span>
-                            <span>{attempt ? `${attempt.percent}%` : 'N/A'}</span>
-                            <span>{attempt ? (attempt.percent >= 50 ? 'Passed' : 'Failed') : 'N/A'}</span>
+                            <span>{attempt?.submittedAt ? new Date(attempt.submittedAt).toLocaleString() : 'N/A'}</span>
+                            <span>{attempt ? `${score}/${total || 0}` : 'N/A'}</span>
+                            <span>{attempt ? `${percent ?? 0}%` : 'N/A'}</span>
+                            <span>{attempt ? ((percent ?? 0) >= 50 ? 'Passed' : 'Failed') : 'N/A'}</span>
                             <span>
                               {attempt ? (
                                 <div className="assignmentGradeActions">
                                   <small>
-                                    Auto: {attempt.autoScore ?? attempt.score}/{attempt.autoTotal ?? attempt.total}
+                                    Attempt {attempt.attemptNo || 1}: {score}/{total || 0}
+                                    {attempt.autoSubmitted ? ' (auto-submitted)' : ''}
                                   </small>
-                                  <button
-                                    type="button"
-                                    className="heroButton heroButtonSecondary"
-                                    onClick={() => applyQuizAttemptOverride(emailKey)}
-                                  >
-                                    Apply
-                                  </button>
                                 </div>
                               ) : (
                                 'N/A'
@@ -2746,11 +2657,8 @@ function CoursesPage() {
                       <span>Email</span>
                       <span>Role</span>
                     </div>
-                    {(getStoredUsers()
-                      .filter((user) => (allEnrollments[user.email?.toLowerCase()] || []).includes(selectedCourse.id))
-                    ).length ? (
-                      getStoredUsers()
-                        .filter((user) => (allEnrollments[user.email?.toLowerCase()] || []).includes(selectedCourse.id))
+                    {enrolledStudentsForSelectedCourse.length ? (
+                      enrolledStudentsForSelectedCourse
                         .map((student) => (
                           <div key={student.email} className="assignmentTableRow assignmentTableRowSimple">
                             <span>{student.name}</span>

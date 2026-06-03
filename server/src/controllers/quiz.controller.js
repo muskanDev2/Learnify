@@ -2,6 +2,11 @@ const QuizAttempt = require('../models/QuizAttempt');
 const Progress = require('../models/Progress');
 const { recalculateCourseProgress, resolveCourseById } = require('../utils/lmsProgress');
 
+function canManageCourse(user, course) {
+  const role = String(user.role || '').toLowerCase();
+  return role === 'admin' || String(course.ownerEmail || '').toLowerCase() === String(user.email || '').toLowerCase();
+}
+
 function findQuiz(course, quizItemId) {
   const id = String(quizItemId);
   return (course.modules || [])
@@ -132,4 +137,28 @@ async function getMyQuizAttempts(req, res, next) {
   }
 }
 
-module.exports = { getMyQuizAttempts, submitQuizAttempt };
+async function listQuizAttempts(req, res, next) {
+  try {
+    const course = await resolveCourseById(req.params.courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found.' });
+    }
+
+    if (!canManageCourse(req.user, course)) {
+      return res.status(403).json({ success: false, message: 'You cannot view these quiz attempts.' });
+    }
+
+    const attempts = await QuizAttempt.find({
+      course: course._id,
+      quizItemId: req.params.quizItemId,
+    })
+      .populate('student', 'name email')
+      .sort({ submittedAt: -1, attemptNo: -1 });
+
+    return res.json({ success: true, data: attempts });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { getMyQuizAttempts, listQuizAttempts, submitQuizAttempt };
