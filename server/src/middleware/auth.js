@@ -46,4 +46,21 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-module.exports = { requireAdmin, requireAuth };
+function requireRoles(...allowedRoles) {
+  const allowed = allowedRoles.map((role) => String(role).toLowerCase());
+
+  return function roleGuard(req, res, next) {
+    const userRole = String(req.user?.role || '').toLowerCase();
+
+    if (!allowed.includes(userRole)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to access this resource.',
+      });
+    }
+
+    return next();
+  };
+}
+
+module.exports = { requireAdmin, requireAuth, requireRoles };

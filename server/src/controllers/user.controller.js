@@ -68,6 +68,22 @@ async function listUsers(req, res, next) {
   }
 }
 
+async function listActiveStudents(req, res, next) {
+  try {
+    const students = await User.find({ role: 'student', active: { $ne: false } }).sort({
+      name: 1,
+      email: 1,
+    });
+
+    return res.json({
+      success: true,
+      data: students.map((student) => student.toClient()),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function updateUser(req, res, next) {
   try {
     const user = await User.findById(req.params.id);
@@ -151,6 +167,7 @@ async function deleteUser(req, res, next) {
 module.exports = {
   deleteUser,
   getMe,
+  listActiveStudents,
   listUsers,
   updateMe,
   updateUser,

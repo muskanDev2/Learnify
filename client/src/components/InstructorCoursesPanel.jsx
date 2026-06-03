@@ -9,7 +9,7 @@ import {
 } from '../utils/courseApi';
 import { fetchEnrollments, manageEnrollment } from '../utils/enrollmentApi';
 import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
-import { fetchUsers } from '../utils/userApi';
+import { fetchStudents } from '../utils/userApi';
 
 const COURSES_KEY = 'learnify_courses';
 
@@ -84,16 +84,16 @@ export default function InstructorCoursesPanel() {
 
     async function loadCoursesFromApi() {
       try {
-        const [apiCourses, apiEnrollments, apiUsers] = await Promise.all([
+        const [apiCourses, apiEnrollments, apiStudents] = await Promise.all([
           fetchCourses(),
           fetchEnrollments(),
-          fetchUsers(),
+          fetchStudents(),
         ]);
         if (!isMounted) return;
 
         saveStoredCourses(apiCourses);
         setEnrollments(apiEnrollments);
-        setStudents(apiUsers.filter((user) => user.role === 'student' && user.active !== false));
+        setStudents(apiStudents);
         setCourses(
           apiCourses
             .filter((course) => (course.ownerEmail || '').toLowerCase() === instructorEmail)

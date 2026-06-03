@@ -15,6 +15,10 @@ export function fetchUsers() {
   return apiFetch('/api/users').then((result) => result.data || []);
 }
 
+export function fetchStudents() {
+  return apiFetch('/api/users/students').then((result) => result.data || []);
+}
+
 export function updateUser(userId, updates) {
   return apiFetch(`/api/users/${userId}`, {
     method: 'PUT',
