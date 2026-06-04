@@ -20,6 +20,7 @@ export default function LoginPage() {
     email: '',
     password: '',
   });
+  const [welcomeUser, setWelcomeUser] = useState(null);
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -55,6 +56,10 @@ export default function LoginPage() {
     }
 
     setCurrentUser(result.user);
+    setWelcomeUser(result.user);
+  }
+
+  function handleContinueToDashboard() {
     navigate('/dashboard', { replace: true });
   }
 
@@ -109,6 +114,23 @@ export default function LoginPage() {
           New to Learnify? <Link to="/register">Sign Up</Link>
         </p>
       </div>
+
+      {welcomeUser && (
+        <div className="lightboxOverlay" role="dialog" aria-modal="true" aria-labelledby="login-welcome-title">
+          <div className="lightboxCard authWelcomeCard">
+            <p className="authModalEyebrow">Login successful</p>
+            <h3 id="login-welcome-title">Welcome back, {welcomeUser.name || 'Learner'}!</h3>
+            <p className="authSubtext">
+              You are signed in securely. Continue to your dashboard to pick up your learning from where you left off.
+            </p>
+            <div className="profileModalActions">
+              <button type="button" className="profilePrimaryButton" onClick={handleContinueToDashboard} autoFocus>
+                Continue to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

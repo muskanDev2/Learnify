@@ -14,7 +14,7 @@ import StudentProgressPanel from '../components/StudentProgressPanel';
 import {
   clearAuthSession,
   getCurrentRole,
-  getStoredUsers,
+  getCurrentUser,
   isAdmin,
   isInstructor,
   isStudent,
@@ -23,21 +23,7 @@ import {
 function DashboardPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // Read logged-in user first; if missing, use first registered user for demo flow.
-  const currentUser = useMemo(() => {
-    const rawUser = localStorage.getItem('learnify_current_user');
-    if (rawUser) {
-      try {
-        return JSON.parse(rawUser);
-      } catch {
-        return null;
-      }
-    }
-
-    // Fallback: show first registered user if current user does not exist yet.
-    const users = getStoredUsers();
-    return users[0] || null;
-  }, []);
+  const currentUser = useMemo(() => getCurrentUser(), []);
 
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
   const [showBackLogoutConfirm, setShowBackLogoutConfirm] = useState(false);
@@ -81,6 +67,12 @@ function DashboardPage() {
       clearTimeout(loadingTimerRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/', { replace: true });
+    }
+  }, [currentUser, navigate]);
 
   useEffect(() => {
     const isGuardTarget = validActiveMenu === 'dashboard';
@@ -138,6 +130,10 @@ function DashboardPage() {
     return <StudentDashboard />;
   }
 
+  if (!currentUser) {
+    return null;
+  }
+
   return (
     <DashboardLayout
       userName={currentUser?.name || 'Learner'}
@@ -182,7 +178,7 @@ function DashboardPage() {
           <div className="lightboxCard">
             <h3 id="dashboard-logout-confirm-title">Logout Confirmation</h3>
             <p className="authSubtext">
-              Do you want to logout and return to home page?
+              You are about to log out and return to the home page. You will need to log in again to open this account.
             </p>
             <div className="profileModalActions">
               <button type="button" className="profilePrimaryButton" onClick={handleConfirmBackLogout}>

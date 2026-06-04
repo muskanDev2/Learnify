@@ -35,6 +35,7 @@ export default function DashboardNavbar() {
   const [userInfo, setUserInfo] = useState(() => getCurrentUser());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeInfoMenu, setActiveInfoMenu] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const profileMenuRef = useRef(null);
 
   useEffect(() => {
@@ -75,10 +76,21 @@ export default function DashboardNavbar() {
     setIsMenuOpen(false);
   }
 
-  function handleLogout() {
+  function handleLogoutClick() {
+    setIsMenuOpen(false);
+    setActiveInfoMenu(null);
+    setShowLogoutConfirm(true);
+  }
+
+  function handleCancelLogout() {
+    setShowLogoutConfirm(false);
+  }
+
+  function handleConfirmLogout() {
     clearAuthSession();
     setIsMenuOpen(false);
     setActiveInfoMenu(null);
+    setShowLogoutConfirm(false);
     navigate('/', { replace: true });
   }
 
@@ -204,7 +216,7 @@ export default function DashboardNavbar() {
                 type="button"
                 className={`${styles.dropdownItem} ${styles.logoutItem}`}
                 role="menuitem"
-                onClick={handleLogout}
+                onClick={handleLogoutClick}
               >
                 <FaArrowRightFromBracket aria-hidden />
                 <span>Logout</span>
@@ -213,6 +225,26 @@ export default function DashboardNavbar() {
           )}
         </div>
       </div>
+
+      {showLogoutConfirm && (
+        <div className="lightboxOverlay" role="dialog" aria-modal="true" aria-labelledby="navbar-logout-confirm-title">
+          <div className="lightboxCard authConfirmCard">
+            <p className="authModalEyebrow">Confirm logout</p>
+            <h3 id="navbar-logout-confirm-title">Are you sure you want to log out?</h3>
+            <p className="authSubtext">
+              Your session will end now. To access this account again, you will need to log in with your email and password.
+            </p>
+            <div className="profileModalActions">
+              <button type="button" className="profilePrimaryButton" onClick={handleConfirmLogout} autoFocus>
+                Yes, Logout
+              </button>
+              <button type="button" className="heroButton heroButtonSecondary" onClick={handleCancelLogout}>
+                Stay Logged In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
