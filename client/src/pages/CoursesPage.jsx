@@ -914,12 +914,13 @@ function CoursesPage() {
 
   function renderUploadProgress(progress) {
     if (!progress) return null;
+    const label = progress >= 95 ? 'Finalizing upload...' : `Uploading... ${progress}%`;
     return (
       <div className="uploadProgressWrap" aria-live="polite">
         <div className="uploadProgressTrack">
           <span style={{ width: `${progress}%` }} />
         </div>
-        <small>Uploading... {progress}%</small>
+        <small>{label}</small>
       </div>
     );
   }
@@ -995,6 +996,10 @@ function CoursesPage() {
 
   function handleSaveModuleItem() {
     if (!selectedCourse || !itemTargetModuleId || !moduleItemForm.title.trim()) return;
+    if (moduleUploadProgress) {
+      setUploadError('Please wait for the upload to finish before adding this item.');
+      return;
+    }
 
     updateInstructorCourses((prev) =>
       prev.map((course) => {
@@ -2885,9 +2890,15 @@ function CoursesPage() {
                     onDrop={(event) => handleUploadDrop(event, 'module-item', uploadModuleItemFiles)}
                   >
                     <span className="uploadDropIcon">Upload</span>
-                    <strong>Drag files here or browse from your device</strong>
-                    <p>Videos, PDFs, PPTs, docs, images, and text files are uploaded to cloud storage.</p>
-                    <input id="module-item-file" type="file" multiple onChange={handleModuleItemFileChange} />
+                    <strong>Drag one or more files here for this single title</strong>
+                    <p>All selected videos, PDFs, PPTs, docs, images, and text files stay grouped under this item title.</p>
+                    <input
+                      id="module-item-file"
+                      type="file"
+                      multiple
+                      accept="video/*,image/*,.pdf,.ppt,.pptx,.doc,.docx,.txt"
+                      onChange={handleModuleItemFileChange}
+                    />
                   </div>
                   {renderUploadProgress(moduleUploadProgress)}
                   {renderUploadedFiles(moduleItemForm.uploadedFiles)}
@@ -2984,8 +2995,15 @@ function CoursesPage() {
             </div>
 
             <div className="profileModalActions">
-              <button type="button" className="profilePrimaryButton" onClick={handleSaveModuleItem}>
-                {itemModalMode === 'edit' ? 'Save Changes' : 'Add Item'}
+              <button
+                type="button"
+                className="profilePrimaryButton"
+                onClick={handleSaveModuleItem}
+                disabled={Boolean(moduleUploadProgress)}
+              >
+                {moduleUploadProgress
+                  ? 'Uploading...'
+                  : itemModalMode === 'edit' ? 'Save Changes' : 'Add Item'}
               </button>
               <button type="button" className="heroButton heroButtonSecondary" onClick={closeItemModal}>
                 Cancel

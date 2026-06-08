@@ -9,6 +9,12 @@ function hasCloudinaryConfig(config) {
   return Boolean(config.cloudName && config.apiKey && config.apiSecret);
 }
 
+function createCloudinarySignature(params) {
+  const { cloudinary: cloudinaryConfig } = getEnv();
+
+  return cloudinary.utils.api_sign_request(params, cloudinaryConfig.apiSecret);
+}
+
 function getCloudinaryResourceType(mimeType) {
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType.startsWith('video/')) return 'video';
@@ -74,4 +80,9 @@ async function storeUploadedFile(file, req) {
   }
 }
 
-module.exports = { deleteTempFile, storeUploadedFile };
+module.exports = {
+  createCloudinarySignature,
+  deleteTempFile,
+  hasCloudinaryConfig,
+  storeUploadedFile,
+};

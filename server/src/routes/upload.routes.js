@@ -4,7 +4,11 @@ const os = require('os');
 const path = require('path');
 const express = require('express');
 const multer = require('multer');
-const { uploadFiles } = require('../controllers/upload.controller');
+const {
+  createCloudinaryAsset,
+  getCloudinarySignature,
+  uploadFiles,
+} = require('../controllers/upload.controller');
 const { requireAuth, requireRoles } = require('../middleware/auth');
 const { getEnv } = require('../config/env');
 
@@ -54,6 +58,28 @@ const upload = multer({
 
 const router = express.Router();
 
+function formatMulterError(error) {
+  if (error instanceof multer.MulterError) {
+    return error.code === 'LIMIT_FILE_SIZE'
+      ? `File is too large. Max size is ${getEnv().uploadMaxFileMb} MB.`
+      : error.message;
+  }
+
+  return error.message || 'File upload failed.';
+}
+
+function runUpload(req, res, next) {
+  upload.array('files', 10)(req, res, (error) => {
+    if (!error) return next();
+
+    const status = error.status || (error instanceof multer.MulterError ? 400 : 500);
+    return res.status(status).json({
+      success: false,
+      message: formatMulterError(error),
+    });
+  });
+}
+
 function handleMulterErrors(error, req, res, next) {
   if (!error) return next();
 
@@ -68,11 +94,25 @@ function handleMulterErrors(error, req, res, next) {
   return next(error);
 }
 
+router.get(
+  '/cloudinary/signature',
+  requireAuth,
+  requireRoles('admin', 'instructor', 'student'),
+  getCloudinarySignature,
+);
+
+router.post(
+  '/cloudinary/assets',
+  requireAuth,
+  requireRoles('admin', 'instructor', 'student'),
+  createCloudinaryAsset,
+);
+
 router.post(
   '/',
   requireAuth,
   requireRoles('admin', 'instructor', 'student'),
-  upload.array('files', 10),
+  runUpload,
   handleMulterErrors,
   uploadFiles,
 );
