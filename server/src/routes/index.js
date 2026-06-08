@@ -9,6 +9,7 @@ const lmsRoutes = require('./lms.routes');
 const noteRoutes = require('./note.routes');
 const progressRoutes = require('./progress.routes');
 const quizRoutes = require('./quiz.routes');
+const uploadRoutes = require('./upload.routes');
 const userRoutes = require('./user.routes');
 
 const router = express.Router();
@@ -31,6 +32,7 @@ router.use('/lms', lmsRoutes);
 router.use('/notes', noteRoutes);
 router.use('/progress', progressRoutes);
 router.use('/quizzes', quizRoutes);
+router.use('/uploads', uploadRoutes);
 router.use('/users', userRoutes);
 
 module.exports = router;

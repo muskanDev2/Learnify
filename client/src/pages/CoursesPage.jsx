@@ -31,6 +31,7 @@ import {
 import { fetchEnrollments } from '../utils/enrollmentApi';
 import { fetchStudents } from '../utils/userApi';
 import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
+import { uploadFiles } from '../utils/uploadApi';
 
 const COURSES_KEY = 'learnify_courses';
 const ENROLLMENTS_KEY = 'learnify_enrollments';
@@ -101,24 +102,27 @@ function saveStoredStudentProgress(progress) {
   syncLmsSnapshotFromLocalSoon();
 }
 
-function readFilesAsDataUrls(fileList) {
-  return Promise.all(
-    Array.from(fileList).map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () =>
-            resolve({
-              id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-              name: file.name,
-              mimeType: file.type || 'application/octet-stream',
-              dataUrl: reader.result,
-            });
-          reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-          reader.readAsDataURL(file);
-        }),
-    ),
-  );
+function getFileUrl(file) {
+  return file?.url || file?.dataUrl || '';
+}
+
+function getFileIconLabel(file) {
+  const mimeType = String(file?.mimeType || '').toLowerCase();
+  const name = String(file?.name || '').toLowerCase();
+
+  if (mimeType.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/.test(name)) return 'VID';
+  if (mimeType.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/.test(name)) return 'IMG';
+  if (mimeType.includes('pdf') || name.endsWith('.pdf')) return 'PDF';
+  if (mimeType.includes('powerpoint') || /\.(ppt|pptx)$/.test(name)) return 'PPT';
+  if (mimeType.includes('word') || /\.(doc|docx)$/.test(name)) return 'DOC';
+  return 'FILE';
+}
+
+function formatFileSize(bytes) {
+  const size = Number(bytes) || 0;
+  if (!size) return '';
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function getNextId(items) {
@@ -372,6 +376,11 @@ function CoursesPage() {
   const [quizTimeLeftSec, setQuizTimeLeftSec] = useState(null);
   const [quizAttemptsByKey, setQuizAttemptsByKey] = useState({});
   const [assignmentSubmissionsByKey, setAssignmentSubmissionsByKey] = useState({});
+  const [moduleUploadProgress, setModuleUploadProgress] = useState(0);
+  const [assignmentUploadProgress, setAssignmentUploadProgress] = useState(0);
+  const [studentUploadProgress, setStudentUploadProgress] = useState(0);
+  const [activeDropZone, setActiveDropZone] = useState('');
+  const [uploadError, setUploadError] = useState('');
   const quizAttemptSubmittedRef = useRef(false);
   const quizStartAtMsRef = useRef(null);
   const quizAnswersRef = useRef({});
@@ -823,6 +832,8 @@ function CoursesPage() {
     setIsItemModalOpen(false);
     setItemTargetModuleId(null);
     setEditingItemId(null);
+    setModuleUploadProgress(0);
+    setUploadError('');
   }
 
   function handleModuleItemFormChange(event) {
@@ -833,22 +844,106 @@ function CoursesPage() {
   async function handleModuleItemFileChange(event) {
     const files = event.target.files;
     if (!files?.length) return;
-    const uploadedFiles = await readFilesAsDataUrls(files);
-    setModuleItemForm((prev) => ({
-      ...prev,
-      fileName: uploadedFiles.map((file) => file.name).join(', '),
-      uploadedFiles: [...prev.uploadedFiles, ...uploadedFiles],
-    }));
+    await uploadModuleItemFiles(files);
   }
 
   async function handleAssignmentAttachmentChange(event) {
     const files = event.target.files;
     if (!files?.length) return;
-    const attachments = await readFilesAsDataUrls(files);
-    setAssignmentDetailForm((prev) => ({
-      ...prev,
-      attachments: [...prev.attachments, ...attachments],
-    }));
+    await uploadAssignmentAttachmentFiles(files);
+  }
+
+  async function uploadModuleItemFiles(files) {
+    setUploadError('');
+    setModuleUploadProgress(1);
+    try {
+      const uploadedFiles = await uploadFiles(files, setModuleUploadProgress);
+      setModuleItemForm((prev) => ({
+        ...prev,
+        fileName: [...prev.uploadedFiles, ...uploadedFiles].map((file) => file.name).join(', '),
+        uploadedFiles: [...prev.uploadedFiles, ...uploadedFiles],
+      }));
+    } catch (error) {
+      setUploadError(error.message || 'Could not upload files.');
+    } finally {
+      setModuleUploadProgress(0);
+    }
+  }
+
+  async function uploadAssignmentAttachmentFiles(files) {
+    setUploadError('');
+    setAssignmentUploadProgress(1);
+    try {
+      const attachments = await uploadFiles(files, setAssignmentUploadProgress);
+      setAssignmentDetailForm((prev) => ({
+        ...prev,
+        attachments: [...prev.attachments, ...attachments],
+      }));
+    } catch (error) {
+      setUploadError(error.message || 'Could not upload files.');
+    } finally {
+      setAssignmentUploadProgress(0);
+    }
+  }
+
+  async function uploadStudentAssignmentFiles(files) {
+    setUploadError('');
+    setStudentUploadProgress(1);
+    await uploadStudentAssignmentFiles(files);
+  }
+
+  function handleUploadDragOver(event, zone) {
+    event.preventDefault();
+    setActiveDropZone(zone);
+  }
+
+  function handleUploadDragLeave(event) {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setActiveDropZone('');
+    }
+  }
+
+  function handleUploadDrop(event, zone, uploadHandler) {
+    event.preventDefault();
+    setActiveDropZone('');
+    const files = event.dataTransfer.files;
+    if (files?.length) {
+      uploadHandler(files);
+    }
+  }
+
+  function renderUploadProgress(progress) {
+    if (!progress) return null;
+    return (
+      <div className="uploadProgressWrap" aria-live="polite">
+        <div className="uploadProgressTrack">
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        <small>Uploading... {progress}%</small>
+      </div>
+    );
+  }
+
+  function renderUploadedFiles(files) {
+    if (!files.length) return null;
+    return (
+      <div className="uploadFileGrid">
+        {files.map((file) => (
+          <button
+            key={file.id || file.url || file.name}
+            type="button"
+            className="uploadFileCard"
+            onClick={() => openStoredFile(file)}
+          >
+            <span className="uploadFileIcon">{getFileIconLabel(file)}</span>
+            <span>
+              <strong>{file.name}</strong>
+              <small>{formatFileSize(file.size) || file.mimeType || 'Uploaded file'}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    );
   }
 
   function addQuizQuestion() {
@@ -1027,7 +1122,7 @@ function CoursesPage() {
   }
 
   function openStoredFile(file) {
-    if (!file?.dataUrl) return;
+    if (!getFileUrl(file)) return;
     setPreviewFile(file);
   }
 
@@ -1461,8 +1556,7 @@ function CoursesPage() {
   async function handleStudentAssignmentUploadChange(event) {
     const files = event.target.files;
     if (!files?.length) return;
-    const uploadedFiles = await readFilesAsDataUrls(files);
-    setStudentAssignmentUploadFiles((prev) => [...prev, ...uploadedFiles]);
+    await uploadStudentAssignmentFiles(files);
   }
 
   function submitStudentAssignment() {
@@ -1551,6 +1645,7 @@ function CoursesPage() {
       <div className="dashboardMain">
         <main className="dashboardContent coursesPageContent">
           {courseSyncMessage && <p className="errorText formError">{courseSyncMessage}</p>}
+          {uploadError && <p className="errorText formError">{uploadError}</p>}
 
           {!selectedCourse ? (
             <section className="dashboardPanel">
@@ -1670,25 +1765,37 @@ function CoursesPage() {
                         <span>Enable file submission</span>
                       </label>
 
-                      <label htmlFor="assignment-files">Upload content (optional)</label>
-                      <input
-                        id="assignment-files"
-                        type="file"
-                        multiple
-                        accept=".doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.pdf"
-                        onChange={handleAssignmentAttachmentChange}
-                      />
+                      <label htmlFor="assignment-files">Upload supporting content</label>
+                      <div
+                        className={`uploadDropZone ${activeDropZone === 'assignment' ? 'uploadDropZoneActive' : ''}`}
+                        onDragOver={(event) => handleUploadDragOver(event, 'assignment')}
+                        onDragLeave={handleUploadDragLeave}
+                        onDrop={(event) => handleUploadDrop(event, 'assignment', uploadAssignmentAttachmentFiles)}
+                      >
+                        <span className="uploadDropIcon">Attach</span>
+                        <strong>Drop assignment files here</strong>
+                        <p>Keep instructions lightweight and attach files as cloud URLs for fast student access.</p>
+                        <input
+                          id="assignment-files"
+                          type="file"
+                          multiple
+                          accept=".doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.pdf,.mp4,.webm"
+                          onChange={handleAssignmentAttachmentChange}
+                        />
+                      </div>
+                      {renderUploadProgress(assignmentUploadProgress)}
                     </div>
 
                     {assignmentDetailForm.attachments.length > 0 && (
-                      <div className="assignmentAttachmentList">
+                      <div className="uploadFileGrid">
                         {assignmentDetailForm.attachments.map((file) => (
-                          <div key={file.id} className="assignmentAttachmentChip">
+                          <div key={file.id || file.url || file.name} className="assignmentAttachmentChip uploadFileCard">
                             <button
                               type="button"
-                              className="courseInlineFileButton"
+                              className="courseInlineFileButton uploadFileOpenButton"
                               onClick={() => openStoredFile(file)}
                             >
+                              <span className="uploadFileIcon">{getFileIconLabel(file)}</span>
                               {file.name}
                             </button>
                             <button
@@ -1763,30 +1870,38 @@ function CoursesPage() {
                           <h4>Submit Assignment</h4>
                           <div className="authForm">
                             <label htmlFor="student-assignment-files">Upload your files</label>
-                            <input
-                              id="student-assignment-files"
-                              type="file"
-                              multiple
-                              onChange={handleStudentAssignmentUploadChange}
-                              disabled={
-                                !selectedAssignmentItem.submissionOpen ||
-                                shouldAutoCloseSubmission(selectedAssignmentItem.dueAt)
-                              }
-                            />
+                            <div
+                              className={`uploadDropZone ${activeDropZone === 'student-assignment' ? 'uploadDropZoneActive' : ''}`}
+                              onDragOver={(event) => handleUploadDragOver(event, 'student-assignment')}
+                              onDragLeave={handleUploadDragLeave}
+                              onDrop={(event) => {
+                                if (
+                                  !selectedAssignmentItem.submissionOpen ||
+                                  shouldAutoCloseSubmission(selectedAssignmentItem.dueAt)
+                                ) {
+                                  return;
+                                }
+                                handleUploadDrop(event, 'student-assignment', uploadStudentAssignmentFiles);
+                              }}
+                            >
+                              <span className="uploadDropIcon">Submit</span>
+                              <strong>Drop your files here or browse</strong>
+                              <p>Your files upload first, then the assignment submission stores secure file links.</p>
+                              <input
+                                id="student-assignment-files"
+                                type="file"
+                                multiple
+                                onChange={handleStudentAssignmentUploadChange}
+                                disabled={
+                                  !selectedAssignmentItem.submissionOpen ||
+                                  shouldAutoCloseSubmission(selectedAssignmentItem.dueAt)
+                                }
+                              />
+                            </div>
+                            {renderUploadProgress(studentUploadProgress)}
                           </div>
                           {studentAssignmentUploadFiles.length > 0 && (
-                            <div className="assignmentAttachmentList">
-                              {studentAssignmentUploadFiles.map((file) => (
-                                <button
-                                  key={file.id}
-                                  type="button"
-                                  className="courseInlineFileButton"
-                                  onClick={() => openStoredFile(file)}
-                                >
-                                  {file.name}
-                                </button>
-                              ))}
-                            </div>
+                            renderUploadedFiles(studentAssignmentUploadFiles)
                           )}
                           <div className="profileModalActions">
                             <button
@@ -1943,12 +2058,12 @@ function CoursesPage() {
                             </button>
                           </div>
                           {activeContentFile.mimeType.startsWith('image/') ? (
-                            <img src={activeContentFile.dataUrl} alt={activeContentFile.name} className="contentViewerImage" />
+                            <img src={getFileUrl(activeContentFile)} alt={activeContentFile.name} className="contentViewerImage" />
                           ) : activeContentFile.mimeType === 'application/pdf' ? (
-                            <iframe src={activeContentFile.dataUrl} title={activeContentFile.name} className="contentViewerFrame" />
+                            <iframe src={getFileUrl(activeContentFile)} title={activeContentFile.name} className="contentViewerFrame" />
                           ) : activeContentFile.mimeType.startsWith('video/') ? (
                             <video controls className="contentViewerVideo">
-                              <source src={activeContentFile.dataUrl} type={activeContentFile.mimeType} />
+                              <source src={getFileUrl(activeContentFile)} type={activeContentFile.mimeType} />
                             </video>
                           ) : (
                             <div className="contentViewerFallback">
@@ -2762,23 +2877,20 @@ function CoursesPage() {
                     placeholder="https://..."
                   />
 
-                  <label htmlFor="module-item-file">Upload File (optional)</label>
-                  <input id="module-item-file" type="file" multiple onChange={handleModuleItemFileChange} />
-
-                  {moduleItemForm.uploadedFiles.length > 0 && (
-                    <div className="assignmentAttachmentList">
-                      {moduleItemForm.uploadedFiles.map((file) => (
-                        <button
-                          key={file.id}
-                          type="button"
-                          className="courseInlineFileButton"
-                          onClick={() => openStoredFile(file)}
-                        >
-                          {file.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <label htmlFor="module-item-file">Upload files</label>
+                  <div
+                    className={`uploadDropZone ${activeDropZone === 'module-item' ? 'uploadDropZoneActive' : ''}`}
+                    onDragOver={(event) => handleUploadDragOver(event, 'module-item')}
+                    onDragLeave={handleUploadDragLeave}
+                    onDrop={(event) => handleUploadDrop(event, 'module-item', uploadModuleItemFiles)}
+                  >
+                    <span className="uploadDropIcon">Upload</span>
+                    <strong>Drag files here or browse from your device</strong>
+                    <p>Videos, PDFs, PPTs, docs, images, and text files are uploaded to cloud storage.</p>
+                    <input id="module-item-file" type="file" multiple onChange={handleModuleItemFileChange} />
+                  </div>
+                  {renderUploadProgress(moduleUploadProgress)}
+                  {renderUploadedFiles(moduleItemForm.uploadedFiles)}
                 </>
               )}
 
@@ -2895,12 +3007,12 @@ function CoursesPage() {
 
             <div className="filePreviewBody">
               {previewFile.mimeType?.startsWith('image/') ? (
-                <img src={previewFile.dataUrl} alt={previewFile.name} className="filePreviewImage" />
+                <img src={getFileUrl(previewFile)} alt={previewFile.name} className="filePreviewImage" />
               ) : previewFile.mimeType === 'application/pdf' ? (
-                <iframe src={previewFile.dataUrl} title={previewFile.name} className="filePreviewFrame" />
+                <iframe src={getFileUrl(previewFile)} title={previewFile.name} className="filePreviewFrame" />
               ) : previewFile.mimeType?.startsWith('video/') ? (
                 <video controls className="filePreviewVideo">
-                  <source src={previewFile.dataUrl} type={previewFile.mimeType} />
+                  <source src={getFileUrl(previewFile)} type={previewFile.mimeType} />
                 </video>
               ) : (
                 <div className="contentViewerFallback">
@@ -2911,7 +3023,7 @@ function CoursesPage() {
 
             <div className="profileModalActions">
               <a
-                href={previewFile.dataUrl}
+                href={getFileUrl(previewFile)}
                 download={previewFile.name}
                 className="profilePrimaryButton filePreviewDownloadButton"
               >

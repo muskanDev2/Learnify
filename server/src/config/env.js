@@ -20,6 +20,13 @@ function getEnv() {
       .filter(Boolean),
     jwtSecret: process.env.JWT_SECRET || '',
     nodeEnv: process.env.NODE_ENV || 'development',
+    uploadMaxFileMb: Number(process.env.UPLOAD_MAX_FILE_MB) || 250,
+    cloudinary: {
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
+      apiKey: process.env.CLOUDINARY_API_KEY || '',
+      apiSecret: process.env.CLOUDINARY_API_SECRET || '',
+      folder: process.env.CLOUDINARY_UPLOAD_FOLDER || 'learnify/lms',
+    },
   };
 }
 

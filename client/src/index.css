@@ -1549,6 +1549,140 @@ h1, h2, h3 {
   cursor: pointer;
 }
 
+.uploadDropZone {
+  border: 1.5px dashed #93c5fd;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 1rem;
+  display: grid;
+  gap: 0.45rem;
+  color: #334155;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.uploadDropZoneActive {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.uploadDropIcon {
+  width: fit-content;
+  border-radius: 999px;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.24rem 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.uploadDropZone strong {
+  color: #0f172a;
+}
+
+.uploadDropZone p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.uploadDropZone input[type='file'] {
+  width: 100%;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background-color: #ffffff;
+  padding: 0.55rem;
+}
+
+.uploadProgressWrap {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+}
+
+.uploadProgressTrack {
+  height: 0.6rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: #dbeafe;
+}
+
+.uploadProgressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #0d9488);
+  transition: width 0.18s ease;
+}
+
+.uploadProgressWrap small {
+  color: #475569;
+  font-weight: 600;
+}
+
+.uploadFileGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+}
+
+.uploadFileCard {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #ffffff;
+  padding: 0.65rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.uploadFileCard:hover {
+  background-color: #f8fafc;
+  border-color: #bfdbfe;
+}
+
+.uploadFileIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 10px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.uploadFileCard strong,
+.uploadFileCard small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uploadFileCard small {
+  margin-top: 0.15rem;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.uploadFileOpenButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .courseItemActions {
   display: flex;
   gap: 0.45rem;
@@ -2278,6 +2412,10 @@ h1, h2, h3 {
   }
 
   .courseContentStats {
+    grid-template-columns: 1fr;
+  }
+
+  .uploadFileGrid {
     grid-template-columns: 1fr;
   }
 

@@ -8,11 +8,12 @@ const API_BASE = (
 export async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
   const token = localStorage.getItem('learnify_auth_token');
+  const isFormData = options.body instanceof FormData;
 
   const response = await fetch(url, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
