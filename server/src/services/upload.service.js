@@ -21,6 +21,10 @@ function getCloudinaryResourceType(mimeType) {
   return 'raw';
 }
 
+function shouldUseChunkedUpload(file) {
+  return file.mimetype.startsWith('video/') || file.size > 50 * 1024 * 1024;
+}
+
 async function deleteTempFile(filePath) {
   if (!filePath) return;
   await fs.unlink(filePath).catch(() => {});
@@ -28,6 +32,7 @@ async function deleteTempFile(filePath) {
 
 async function uploadToCloudinary(file) {
   const { cloudinary: cloudinaryConfig } = getEnv();
+  const resourceType = getCloudinaryResourceType(file.mimetype);
 
   cloudinary.config({
     cloud_name: cloudinaryConfig.cloudName,
@@ -35,12 +40,28 @@ async function uploadToCloudinary(file) {
     api_secret: cloudinaryConfig.apiSecret,
   });
 
-  const result = await cloudinary.uploader.upload(file.path, {
+  const uploadOptions = {
     folder: cloudinaryConfig.folder,
-    resource_type: getCloudinaryResourceType(file.mimetype),
+    resource_type: resourceType,
     use_filename: true,
     unique_filename: true,
-  });
+  };
+
+  const result = shouldUseChunkedUpload(file)
+    ? await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_large(
+          file.path,
+          {
+            ...uploadOptions,
+            chunk_size: 8 * 1024 * 1024,
+          },
+          (error, uploadResult) => {
+            if (error) reject(error);
+            else resolve(uploadResult);
+          },
+        );
+      })
+    : await cloudinary.uploader.upload(file.path, uploadOptions);
 
   return {
     url: result.secure_url,

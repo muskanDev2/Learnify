@@ -148,8 +148,13 @@ export async function uploadFiles(files, onProgress) {
   const fileList = Array.from(files || []);
   if (!fileList.length) return [];
 
-  const directUploadResult = await uploadFilesDirectly(fileList, onProgress);
-  if (directUploadResult) return directUploadResult;
+  try {
+    const directUploadResult = await uploadFilesDirectly(fileList, onProgress);
+    if (directUploadResult) return directUploadResult;
+  } catch (error) {
+    console.warn('Direct Cloudinary upload failed; retrying through server.', error.message);
+    onProgress?.(1);
+  }
 
   return uploadFilesThroughServer(fileList, onProgress);
 }

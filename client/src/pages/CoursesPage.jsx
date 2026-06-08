@@ -889,7 +889,14 @@ function CoursesPage() {
   async function uploadStudentAssignmentFiles(files) {
     setUploadError('');
     setStudentUploadProgress(1);
-    await uploadStudentAssignmentFiles(files);
+    try {
+      const uploadedFiles = await uploadFiles(files, setStudentUploadProgress);
+      setStudentAssignmentUploadFiles((prev) => [...prev, ...uploadedFiles]);
+    } catch (error) {
+      setUploadError(error.message || 'Could not upload files.');
+    } finally {
+      setStudentUploadProgress(0);
+    }
   }
 
   function handleUploadDragOver(event, zone) {
@@ -914,7 +921,9 @@ function CoursesPage() {
 
   function renderUploadProgress(progress) {
     if (!progress) return null;
-    const label = progress >= 95 ? 'Finalizing upload...' : `Uploading... ${progress}%`;
+    const label = progress >= 95
+      ? 'Finalizing video processing. Please keep this window open...'
+      : `Uploading... ${progress}%`;
     return (
       <div className="uploadProgressWrap" aria-live="polite">
         <div className="uploadProgressTrack">
