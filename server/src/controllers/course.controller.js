@@ -1,6 +1,7 @@
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 const LmsSnapshot = require('../models/LmsSnapshot');
+const { sanitizeCourseModules, sanitizeCourses } = require('../utils/sanitizeCoursePayload');
 
 function buildStarterModules() {
   return [{ id: 1, title: 'General', items: [] }];
@@ -26,7 +27,7 @@ async function listCourses(req, res, next) {
       const snapshotCourses = Array.isArray(snapshot?.courses) ? snapshot.courses : [];
 
       if (snapshotCourses.length > 0) {
-        await Course.insertMany(snapshotCourses, { ordered: false });
+        await Course.insertMany(sanitizeCourses(snapshotCourses), { ordered: false });
       }
     }
 
@@ -101,7 +102,7 @@ async function updateCourse(req, res, next) {
 
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
-        updates[field] = req.body[field];
+        updates[field] = field === 'modules' ? sanitizeCourseModules(req.body[field]) : req.body[field];
       }
     });
 
@@ -189,7 +190,7 @@ async function updateStudentCourseWork(req, res, next) {
       { id: course.id },
       {
         $set: {
-          modules: req.body.modules,
+          modules: sanitizeCourseModules(req.body.modules),
           lastAccessed: new Date().toISOString().slice(0, 10),
         },
       },

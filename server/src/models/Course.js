@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { sanitizeCourseModules } = require('../utils/sanitizeCoursePayload');
 
 const courseSchema = new mongoose.Schema(
   {
@@ -74,7 +75,7 @@ courseSchema.methods.toClient = function toClient() {
     imageClass: this.imageClass,
     lastAccessed: this.lastAccessed,
     ownerEmail: this.ownerEmail,
-    modules: this.modules || [],
+    modules: sanitizeCourseModules(this.modules),
   };
 };
 

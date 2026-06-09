@@ -1,5 +1,6 @@
 const AssignmentSubmission = require('../models/AssignmentSubmission');
 const Progress = require('../models/Progress');
+const { sanitizeSubmissionFiles } = require('../utils/sanitizeCoursePayload');
 const { recalculateCourseProgress, resolveCourseById } = require('../utils/lmsProgress');
 
 function canManageCourse(user, course) {
@@ -28,7 +29,7 @@ async function submitAssignment(req, res, next) {
         },
         $set: {
           textSubmission: req.body.textSubmission || '',
-          files: Array.isArray(req.body.files) ? req.body.files : [],
+          files: sanitizeSubmissionFiles(req.body.files),
           submittedAt,
           status: isLate ? 'late' : 'submitted',
         },

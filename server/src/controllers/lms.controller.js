@@ -1,4 +1,5 @@
 const LmsSnapshot = require('../models/LmsSnapshot');
+const { sanitizeCourses } = require('../utils/sanitizeCoursePayload');
 
 const SNAPSHOT_KEY = 'main';
 
@@ -25,7 +26,7 @@ async function getSnapshot(req, res, next) {
     return res.json({
       success: true,
       data: {
-        courses: snapshot.courses || [],
+        courses: sanitizeCourses(snapshot.courses || []),
         enrollments: snapshot.enrollments || {},
         studentProgress: snapshot.studentProgress || {},
       },
@@ -37,7 +38,7 @@ async function getSnapshot(req, res, next) {
 
 async function syncSnapshot(req, res, next) {
   try {
-    const courses = Array.isArray(req.body.courses) ? req.body.courses : [];
+    const courses = sanitizeCourses(Array.isArray(req.body.courses) ? req.body.courses : []);
     const enrollments =
       req.body.enrollments && typeof req.body.enrollments === 'object' ? req.body.enrollments : {};
     const studentProgress =
@@ -61,7 +62,7 @@ async function syncSnapshot(req, res, next) {
       success: true,
       message: 'LMS data synced successfully.',
       data: {
-        courses: snapshot.courses || [],
+        courses: sanitizeCourses(snapshot.courses || []),
         enrollments: snapshot.enrollments || {},
         studentProgress: snapshot.studentProgress || {},
       },
