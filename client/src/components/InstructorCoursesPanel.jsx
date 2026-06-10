@@ -10,6 +10,8 @@ import {
 import { fetchEnrollments, manageEnrollment } from '../utils/enrollmentApi';
 import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
 import { fetchStudents } from '../utils/userApi';
+import DeleteConfirmationDialog from './DeleteConfirmationDialog';
+import Toast from './Toast';
 
 const COURSES_KEY = 'learnify_courses';
 
@@ -67,6 +69,7 @@ export default function InstructorCoursesPanel() {
   const [editingCourseId, setEditingCourseId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
   const [students, setStudents] = useState([]);
   const [enrollments, setEnrollments] = useState({});
   const [selectedStudentByCourse, setSelectedStudentByCourse] = useState({});
@@ -163,6 +166,11 @@ export default function InstructorCoursesPanel() {
     saveStoredCourses(getStoredCourses().filter((course) => course.id !== courseId));
   }
 
+  function showDeleteSuccess() {
+    setToastMessage('Item deleted successfully.');
+    window.setTimeout(() => setToastMessage(''), 4000);
+  }
+
   function openCreateModal() {
     setEditingCourseId(null);
     setCourseForm({
@@ -247,6 +255,7 @@ export default function InstructorCoursesPanel() {
       setCourses((prev) => prev.filter((course) => course.id !== deletingCourseId));
       removeCachedCourse(deletingCourseId);
       setDeletingCourseId(null);
+      showDeleteSuccess();
     } catch (error) {
       setStatusMessage(error.message || 'Course could not be deleted.');
     } finally {
@@ -293,6 +302,7 @@ export default function InstructorCoursesPanel() {
 
   return (
     <section className="myCoursesSection">
+      <Toast message={toastMessage} />
       <div className="myCoursesHeader">
         <div>
           <h2>My courses</h2>
@@ -469,26 +479,14 @@ export default function InstructorCoursesPanel() {
       )}
 
       {deletingCourseId && (
-        <div className="lightboxOverlay" role="alertdialog" aria-modal="true" aria-labelledby="course-delete-title">
-          <div className="lightboxCard courseDeleteCard">
-            <h3 id="course-delete-title">Delete Course</h3>
-            <p>
-              Are you sure you want to delete this course? 
-            </p>
-            <div className="profileModalActions">
-              <button type="button" className="profileDangerButton" onClick={confirmDeleteCourse} disabled={isSaving}>
-                {isSaving ? 'Deleting...' : 'Yes, Delete'}
-              </button>
-              <button
-                type="button"
-                className="heroButton heroButtonSecondary"
-                onClick={() => setDeletingCourseId(null)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteConfirmationDialog
+          title="Delete Course?"
+          message="This will delete the course from your course list."
+          impact="Course content and related local course data will no longer be available from this view."
+          isProcessing={isSaving}
+          onCancel={() => setDeletingCourseId(null)}
+          onConfirm={confirmDeleteCourse}
+        />
       )}
     </section>
   );

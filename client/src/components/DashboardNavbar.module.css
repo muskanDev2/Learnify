@@ -4,7 +4,7 @@
   grid-template-columns: auto minmax(240px, 520px) auto;
   align-items: center;
   gap: 0.9rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem clamp(0.85rem, 3vw, 1.5rem);
   background-color: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -67,17 +67,22 @@
   align-items: center;
   gap: 0.65rem;
   justify-self: end;
+  min-width: 0;
 }
 
 .homeButton {
   text-decoration: none;
   border: 1px solid #dbeafe;
-  border-radius: 8px;
+  border-radius: var(--button-radius, 10px);
   background-color: #eff6ff;
   color: #1d4ed8;
   font-weight: 600;
-  font-size: 0.9rem;
-  padding: 0.45rem 0.75rem;
+  font-size: var(--button-font-size, 0.92rem);
+  min-height: var(--button-height, 40px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem var(--button-padding-x, 0.85rem);
 }
 
 .homeButton:hover {
@@ -185,7 +190,7 @@
   position: absolute;
   right: 0;
   top: calc(100% + 0.45rem);
-  width: 220px;
+  width: min(220px, calc(100vw - 1.5rem));
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background-color: #ffffff;
@@ -198,7 +203,7 @@
   position: absolute;
   top: calc(100% + 0.45rem);
   right: 0;
-  width: 250px;
+  width: min(250px, calc(100vw - 1.5rem));
   padding: 0.65rem 0.75rem;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -239,7 +244,7 @@
 
 @media (max-width: 768px) {
   .navbar {
-    grid-template-columns: auto minmax(160px, 1fr) auto;
+    grid-template-columns: auto 1fr;
     padding: 0.65rem 0.9rem;
     gap: 0.6rem;
   }
@@ -252,12 +257,48 @@
     font-size: 0.88rem;
   }
 
+  .searchWrap {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .right {
+    max-width: 100%;
+  }
+
   .iconCircle {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
   }
 
   .userName {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding-inline: 0.75rem;
+  }
+
+  .homeButton {
+    display: none;
+  }
+
+  .right {
+    gap: 0.4rem;
+  }
+
+  .profile {
+    padding-right: 0.25rem;
+  }
+
+  .dropdown,
+  .infoDropdown {
+    position: fixed;
+    top: 4.4rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
   }
 }

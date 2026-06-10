@@ -3,16 +3,27 @@
   flex-direction: column;
   min-height: 100vh;
   background-color: #f9fafb;
+  overflow-x: clip;
 }
 
 .mainContainer {
   display: flex;
   flex: 1;
+  min-width: 0;
 }
 
 .contentArea {
   flex: 1;
-  padding: 2rem;
+  width: 100%;
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 2rem);
   background-color: #f9fafb;
   overflow-y: auto;
+  overflow-x: clip;
+}
+
+@media (max-width: 640px) {
+  .contentArea {
+    padding: 0.85rem;
+  }
 }

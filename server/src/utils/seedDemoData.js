@@ -38,36 +38,53 @@ const demoUsers = [
     role: 'instructor',
     department: 'Software Engineering',
   },
-  { name: 'Ali Khan', email: 'ali.khan@student.learnify.test', password: 'Student@123', role: 'student' },
+  {
+    name: 'Ali Khan',
+    email: 'ali.khan@student.learnify.test',
+    password: 'Student@123',
+    role: 'student',
+    degreeProgram: 'BS Computer Science',
+    semester: 5,
+  },
   {
     name: 'Ayesha Malik',
     email: 'ayesha.malik@student.learnify.test',
     password: 'Student@123',
     role: 'student',
+    degreeProgram: 'BS Software Engineering',
+    semester: 3,
   },
   {
     name: 'Usman Tariq',
     email: 'usman.tariq@student.learnify.test',
     password: 'Student@123',
     role: 'student',
+    degreeProgram: 'BS Data Science',
+    semester: 4,
   },
   {
     name: 'Zainab Ahmed',
     email: 'zainab.ahmed@student.learnify.test',
     password: 'Student@123',
     role: 'student',
+    degreeProgram: 'BS Artificial Intelligence',
+    semester: 6,
   },
   {
     name: 'Hamza Farooq',
     email: 'hamza.farooq@student.learnify.test',
     password: 'Student@123',
     role: 'student',
+    degreeProgram: 'BS Computer Science',
+    semester: 2,
   },
   {
     name: 'Mariam Shah',
     email: 'mariam.shah@student.learnify.test',
     password: 'Student@123',
     role: 'student',
+    degreeProgram: 'BS Software Engineering',
+    semester: 7,
   },
 ];
 
@@ -350,6 +367,11 @@ async function upsertUser(userData) {
     user.role = userData.role;
     user.active = true;
     user.password = userData.password;
+  }
+
+  if (userData.role === 'student') {
+    user.degreeProgram = userData.degreeProgram;
+    user.semester = userData.semester;
   }
 
   if (userData.department) {

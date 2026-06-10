@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearAuthSession, getCurrentUser, updateCurrentUserProfile } from '../utils/authUtils';
-import { fetchMe, updateMe } from '../utils/userApi';
+import { deleteMe, fetchMe, updateMe } from '../utils/userApi';
+import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
+import Toast from '../components/Toast';
 
 const COUNTRY_OPTIONS = ['Pakistan', 'India', 'United Arab Emirates', 'Saudi Arabia', 'United Kingdom', 'United States'];
+const SEMESTER_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 function buildProfileData(user) {
   return {
@@ -13,6 +16,8 @@ function buildProfileData(user) {
     phone: user?.phone || '',
     address: user?.address || '',
     country: user?.country || '',
+    semester: user?.semester ? String(user.semester) : '',
+    degreeProgram: user?.degreeProgram || '',
     gender: user?.gender || '',
     profileImage: user?.profileImage || '',
     countryLocked: Boolean(user?.countryLocked),
@@ -29,9 +34,13 @@ export default function ProfilePage() {
   const [isPhotoMenuOpen, setIsPhotoMenuOpen] = useState(false);
   const [isPhotoPreviewOpen, setIsPhotoPreviewOpen] = useState(false);
   const [editForm, setEditForm] = useState(() => buildProfileData(currentUser));
+  const [formError, setFormError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteConfirmationStep, setDeleteConfirmationStep] = useState('account');
   const photoMenuRef = useRef(null);
-  const deleteCancelRef = useRef(null);
+  const isStudentProfile = String(profileData.role || '').toLowerCase() === 'student';
+  const isInstructorProfile = String(profileData.role || '').toLowerCase() === 'instructor';
 
   useEffect(() => {
     let isMounted = true;
@@ -65,12 +74,6 @@ export default function ProfilePage() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isPhotoMenuOpen]);
 
-  useEffect(() => {
-    if (isDeleteConfirmOpen && deleteCancelRef.current) {
-      deleteCancelRef.current.focus();
-    }
-  }, [isDeleteConfirmOpen]);
-
   function showSuccessToast(message) {
     setToastMessage(message);
     setTimeout(() => {
@@ -80,11 +83,13 @@ export default function ProfilePage() {
 
   function openEditModal() {
     setEditForm(profileData);
+    setFormError('');
     setIsEditOpen(true);
   }
 
   function handleCancelEdit() {
     setEditForm(profileData);
+    setFormError('');
     setIsEditOpen(false);
   }
 
@@ -115,9 +120,27 @@ export default function ProfilePage() {
   }
 
   async function handleConfirmEdit() {
+    const isStudentEdit = String(editForm.role || '').toLowerCase() === 'student';
+    const degreeProgram = editForm.degreeProgram.trim();
+    const semester = Number(editForm.semester);
+
+    if (isStudentEdit) {
+      if (!degreeProgram) {
+        setFormError('Degree Program is required for student profiles.');
+        return;
+      }
+
+      if (!Number.isInteger(semester) || semester < 1 || semester > 12) {
+        setFormError('Semester must be selected between 1 and 12.');
+        return;
+      }
+    }
+
     const updatedProfile = {
       phone: editForm.phone,
       address: editForm.address,
+      semester: editForm.semester ? semester : undefined,
+      degreeProgram: degreeProgram || undefined,
       gender: editForm.gender,
       country: editForm.country,
       // Lock these after first confirmation as requested.
@@ -131,6 +154,7 @@ export default function ProfilePage() {
       const mergedProfile = buildProfileData(updatedUser);
       setProfileData(mergedProfile);
       setEditForm(mergedProfile);
+      setFormError('');
       setIsEditOpen(false);
       window.dispatchEvent(new Event('learnify-user-updated'));
       showSuccessToast('Successfully updated!');
@@ -139,18 +163,64 @@ export default function ProfilePage() {
     }
   }
 
-  function handleDeactivateAccount() {
-    clearAuthSession();
-    navigate('/', { replace: true });
+  async function handleDeleteAccount() {
+    if (isInstructorProfile && deleteConfirmationStep === 'account') {
+      setDeleteConfirmationStep('owned-courses');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+
+    try {
+      await deleteMe({ deleteOwnedCourses: isInstructorProfile });
+      const deletedEmail = String(profileData.email || '').toLowerCase();
+      try {
+        const cachedUsers = JSON.parse(localStorage.getItem('learnify_users') || '[]');
+        if (Array.isArray(cachedUsers)) {
+          localStorage.setItem(
+            'learnify_users',
+            JSON.stringify(cachedUsers.filter((user) => String(user.email || '').toLowerCase() !== deletedEmail)),
+          );
+        }
+      } catch {
+        localStorage.removeItem('learnify_users');
+      }
+      try {
+        const cachedCourses = JSON.parse(localStorage.getItem('learnify_courses') || '[]');
+        if (Array.isArray(cachedCourses)) {
+          localStorage.setItem(
+            'learnify_courses',
+            JSON.stringify(cachedCourses.filter((course) => String(course.ownerEmail || '').toLowerCase() !== deletedEmail)),
+          );
+        }
+      } catch {
+        localStorage.removeItem('learnify_courses');
+      }
+      setIsDeleteConfirmOpen(false);
+      showSuccessToast('Account and personal data deleted successfully.');
+      window.setTimeout(() => {
+        clearAuthSession();
+        navigate('/', { replace: true });
+      }, 900);
+    } catch (error) {
+      showSuccessToast(error.message || 'Could not delete account.');
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }
+
+  function handleDeleteAccountCancel() {
+    if (isDeletingAccount) return;
+    setIsDeleteConfirmOpen(false);
+    setDeleteConfirmationStep('account');
   }
 
   const monogramInitial = (profileData.name || 'L').charAt(0).toUpperCase();
 
   return (
     <section className="profilePage">
+      <Toast message={toastMessage} />
       <div className="profileCard">
-        {toastMessage && <p className="profileToastMessage">{toastMessage}</p>}
-
         <div className="profileHeader">
           <div className="profileAvatarWrap" ref={photoMenuRef}>
             {profileData.profileImage ? (
@@ -221,6 +291,18 @@ export default function ProfilePage() {
             <h4>User Type</h4>
             <p>{profileData.role}</p>
           </div>
+          {isStudentProfile && (
+            <>
+              <div className="profileDetailItem">
+                <h4>Degree Program</h4>
+                <p>{profileData.degreeProgram || 'Not provided'}</p>
+              </div>
+              <div className="profileDetailItem">
+                <h4>Semester</h4>
+                <p>{profileData.semester ? `Semester ${profileData.semester}` : 'Not selected'}</p>
+              </div>
+            </>
+          )}
           <div className="profileDetailItem">
             <h4>Phone Number</h4>
             <p>{profileData.phone || 'Not provided'}</p>
@@ -239,7 +321,14 @@ export default function ProfilePage() {
           <button type="button" className="profilePrimaryButton" onClick={openEditModal}>
             Edit Profile
           </button>
-          <button type="button" className="profileDangerButton" onClick={() => setIsDeleteConfirmOpen(true)}>
+          <button
+            type="button"
+            className="profileDangerButton"
+            onClick={() => {
+              setDeleteConfirmationStep('account');
+              setIsDeleteConfirmOpen(true);
+            }}
+          >
             Delete Account
           </button>
         </div>
@@ -264,6 +353,37 @@ export default function ProfilePage() {
                 <label>Email</label>
                 <div className="profileReadonlyValue">{editForm.email}</div>
               </div>
+              {String(editForm.role || '').toLowerCase() === 'student' && (
+                <>
+                  <div>
+                    <label htmlFor="modal-degree-program">Degree Program</label>
+                    <input
+                      id="modal-degree-program"
+                      name="degreeProgram"
+                      value={editForm.degreeProgram}
+                      onChange={handleInputChange}
+                      placeholder="BS Computer Science"
+                      maxLength={120}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-semester">Semester</label>
+                    <select
+                      id="modal-semester"
+                      name="semester"
+                      value={editForm.semester}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Select semester</option>
+                      {SEMESTER_OPTIONS.map((semester) => (
+                        <option key={semester} value={semester}>
+                          Semester {semester}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
               <div>
                 <label htmlFor="modal-phone">Phone Number</label>
                 <input
@@ -303,6 +423,7 @@ export default function ProfilePage() {
                 {profileData.countryLocked && <p className="hintText">Country is locked after first save.</p>}
               </div>
             </div>
+            {formError && <p className="errorText formError">{formError}</p>}
 
             <div className="profileGenderRow">
               <span>Gender</span>
@@ -355,27 +476,22 @@ export default function ProfilePage() {
       )}
 
       {isDeleteConfirmOpen && (
-        <div className="lightboxOverlay" role="alertdialog" aria-modal="true" aria-labelledby="delete-account-title">
-          <div className="lightboxCard profileDeleteCard">
-            <h3 id="delete-account-title">Delete account?</h3>
-            <p>
-              Are you sure you want to delete this account? This action is not reversible.
-            </p>
-            <div className="profileModalActions">
-              <button type="button" className="profileDangerButton" onClick={handleDeactivateAccount}>
-                Yes, Delete
-              </button>
-              <button
-                type="button"
-                className="heroButton heroButtonSecondary"
-                onClick={() => setIsDeleteConfirmOpen(false)}
-                ref={deleteCancelRef}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteConfirmationDialog
+          title={deleteConfirmationStep === 'owned-courses' ? 'Delete Instructor Account and Courses?' : 'Delete Account?'}
+          message={
+            deleteConfirmationStep === 'owned-courses'
+              ? 'Delete instructor account and all owned courses?'
+              : 'Are you sure you want to permanently delete your account?'
+          }
+          impact={
+            deleteConfirmationStep === 'owned-courses'
+              ? 'All courses created by this instructor, their modules/items, enrollments, student progress, quiz attempts, submissions, and notes for those courses will be deleted from the database. This action cannot be undone.'
+              : 'Your account, profile, enrollments, progress, notes, quiz attempts, assignment submissions, and uploaded assets will be deleted from the database. This action cannot be undone.'
+          }
+          isProcessing={isDeletingAccount}
+          onCancel={handleDeleteAccountCancel}
+          onConfirm={handleDeleteAccount}
+        />
       )}
 
       {isPhotoPreviewOpen && profileData.profileImage && (

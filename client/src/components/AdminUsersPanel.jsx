@@ -5,8 +5,11 @@ import {
   fetchUsers,
   updateUser as updateUserRequest,
 } from '../utils/userApi';
+import DeleteConfirmationDialog from './DeleteConfirmationDialog';
+import Toast from './Toast';
 
 const USERS_KEY = 'learnify_users';
+const SEMESTER_OPTIONS = Array.from({ length: 12 }, (_, index) => index + 1);
 
 function normalizeUsers(users) {
   return (Array.isArray(users) ? users : []).map((user) => ({
@@ -31,7 +34,10 @@ export default function AdminUsersPanel() {
   const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const [isProfileEditMode, setIsProfileEditMode] = useState(false);
   const [pendingRoleChange, setPendingRoleChange] = useState(null);
+  const [pendingDeleteUserEmail, setPendingDeleteUserEmail] = useState('');
   const [showProfileSaveConfirm, setShowProfileSaveConfirm] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [profileForm, setProfileForm] = useState({
     name: '',
     email: '',
@@ -41,6 +47,8 @@ export default function AdminUsersPanel() {
     phone: '',
     address: '',
     country: '',
+    semester: '',
+    degreeProgram: '',
     profileImage: '',
   });
 
@@ -99,6 +107,11 @@ export default function AdminUsersPanel() {
 
   function blockAction(text) {
     setMessage({ type: 'error', text });
+  }
+
+  function showDeleteSuccess() {
+    setToastMessage('Item deleted successfully.');
+    window.setTimeout(() => setToastMessage(''), 4000);
   }
 
   async function applyRoleChange(targetEmail, nextRole) {
@@ -176,7 +189,7 @@ export default function AdminUsersPanel() {
     }
   }
 
-  async function deleteUser(targetEmail) {
+  function requestDeleteUser(targetEmail) {
     const emailKey = (targetEmail || '').toLowerCase();
     const targetUser = users.find((user) => (user.email || '').toLowerCase() === emailKey);
     if (!targetUser) return;
@@ -186,12 +199,33 @@ export default function AdminUsersPanel() {
       return;
     }
 
+    setPendingDeleteUserEmail(targetEmail);
+  }
+
+  async function confirmDeleteUser() {
+    const targetEmail = pendingDeleteUserEmail;
+    const emailKey = (targetEmail || '').toLowerCase();
+    const targetUser = users.find((user) => (user.email || '').toLowerCase() === emailKey);
+    if (!targetUser) return;
+
+    if (isAdmin(targetUser)) {
+      blockAction('Admin accounts cannot be deleted from this panel.');
+      return;
+    }
+
+    setIsDeletingUser(true);
+
     try {
       await deleteUserRequest(targetUser.id);
       const nextUsers = users.filter((user) => (user.email || '').toLowerCase() !== emailKey);
-      persistAndSetUsers(nextUsers, 'User deleted successfully.');
+      setUsers(nextUsers);
+      saveUsers(nextUsers);
+      setPendingDeleteUserEmail('');
+      showDeleteSuccess();
     } catch (error) {
       blockAction(error.message || 'User could not be deleted.');
+    } finally {
+      setIsDeletingUser(false);
     }
   }
 
@@ -207,6 +241,8 @@ export default function AdminUsersPanel() {
       phone: user.phone || '',
       address: user.address || '',
       country: user.country || '',
+      semester: user.semester ? String(user.semester) : '',
+      degreeProgram: user.degreeProgram || '',
       profileImage: user.profileImage || '',
     });
   }
@@ -260,6 +296,20 @@ export default function AdminUsersPanel() {
       return;
     }
 
+    const isStudentProfile = (profileForm.role || '').toLowerCase() === 'student';
+    const semester = Number(profileForm.semester);
+    const degreeProgram = profileForm.degreeProgram.trim();
+
+    if (isStudentProfile && !degreeProgram) {
+      blockAction('Degree Program is required for student profiles.');
+      return;
+    }
+
+    if (isStudentProfile && (!Number.isInteger(semester) || semester < 1 || semester > 12)) {
+      blockAction('Semester must be selected between 1 and 12.');
+      return;
+    }
+
     try {
       const updatedUser = await updateUserRequest(selectedProfileUser.id, {
         name: profileForm.name.trim(),
@@ -270,6 +320,8 @@ export default function AdminUsersPanel() {
         phone: profileForm.phone,
         address: profileForm.address,
         country: profileForm.country,
+        semester: profileForm.semester ? semester : undefined,
+        degreeProgram: degreeProgram || undefined,
         profileImage: profileForm.profileImage || '',
       });
 
@@ -289,6 +341,7 @@ export default function AdminUsersPanel() {
 
   return (
     <div className="dashboardPanel">
+      <Toast message={toastMessage} />
       <h3>Users</h3>
       <p>List of all users with role management controls for non-admin accounts.</p>
 
@@ -408,7 +461,7 @@ export default function AdminUsersPanel() {
                       <button
                         type="button"
                         className="profileDangerButton"
-                        onClick={() => deleteUser(user.email)}
+                        onClick={() => requestDeleteUser(user.email)}
                       >
                         Delete
                       </button>
@@ -515,6 +568,39 @@ export default function AdminUsersPanel() {
                   <p>{(selectedProfileUser.role || 'student').toLowerCase()}</p>
                 )}
               </article>
+              {((isProfileEditMode ? profileForm.role : selectedProfileUser.role) || 'student').toLowerCase() === 'student' && (
+                <>
+                  <article>
+                    <h4>Degree Program</h4>
+                    {isProfileEditMode && !isAdmin(selectedProfileUser) ? (
+                      <input
+                        name="degreeProgram"
+                        value={profileForm.degreeProgram}
+                        onChange={handleProfileFormChange}
+                        placeholder="BS Computer Science"
+                        maxLength={120}
+                      />
+                    ) : (
+                      <p>{selectedProfileUser.degreeProgram || '-'}</p>
+                    )}
+                  </article>
+                  <article>
+                    <h4>Semester</h4>
+                    {isProfileEditMode && !isAdmin(selectedProfileUser) ? (
+                      <select name="semester" value={profileForm.semester} onChange={handleProfileFormChange}>
+                        <option value="">Select semester</option>
+                        {SEMESTER_OPTIONS.map((semester) => (
+                          <option key={semester} value={semester}>
+                            Semester {semester}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p>{selectedProfileUser.semester ? `Semester ${selectedProfileUser.semester}` : '-'}</p>
+                    )}
+                  </article>
+                </>
+              )}
               <article>
                 <h4>Status</h4>
                 {isProfileEditMode && !isAdmin(selectedProfileUser) ? (
@@ -597,6 +683,17 @@ export default function AdminUsersPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {pendingDeleteUserEmail && (
+        <DeleteConfirmationDialog
+          title="Delete User?"
+          message="This will permanently remove this user from the admin user list."
+          impact="The user will lose access to their account data in this application. This action cannot be undone."
+          isProcessing={isDeletingUser}
+          onCancel={() => setPendingDeleteUserEmail('')}
+          onConfirm={confirmDeleteUser}
+        />
       )}
 
       {showProfileSaveConfirm && (

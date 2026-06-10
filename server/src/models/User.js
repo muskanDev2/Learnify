@@ -38,6 +38,16 @@ const userSchema = new mongoose.Schema(
     phone: String,
     address: String,
     country: String,
+    semester: {
+      type: Number,
+      min: 1,
+      max: 12,
+    },
+    degreeProgram: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
     profileImage: String,
     countryLocked: {
       type: Boolean,
@@ -74,6 +84,8 @@ userSchema.methods.toClient = function toClient() {
     phone: this.phone,
     address: this.address,
     country: this.country,
+    semester: this.semester,
+    degreeProgram: this.degreeProgram,
     profileImage: this.profileImage,
     countryLocked: this.countryLocked,
     genderLocked: this.genderLocked,

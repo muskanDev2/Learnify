@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  deleteMe,
   deleteUser,
   getMe,
   listActiveStudents,
@@ -13,6 +14,7 @@ const router = express.Router();
 
 router.get('/me', requireAuth, getMe);
 router.put('/me', requireAuth, updateMe);
+router.delete('/me', requireAuth, deleteMe);
 router.get('/students', requireAuth, requireRoles('admin', 'instructor'), listActiveStudents);
 router.get('/', requireAuth, requireAdmin, listUsers);
 router.put('/:id', requireAuth, requireAdmin, updateUser);

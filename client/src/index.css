@@ -8,6 +8,14 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  --page-gutter: clamp(0.85rem, 3vw, 2rem);
+  --card-padding: clamp(0.9rem, 2.4vw, 1.2rem);
+  --modal-safe-height: min(90vh, calc(100dvh - 2rem));
+  --button-height: 2.5rem;
+  --button-touch-height: 2.75rem;
+  --button-radius: 0.625rem;
+  --button-padding-x: clamp(0.8rem, 1.4vw, 1rem);
+  --button-font-size: 0.92rem;
 }
 
 *,
@@ -16,15 +24,80 @@
   box-sizing: border-box;
 }
 
+* {
+  min-width: 0;
+}
+
 body {
   margin: 0;
   background-color: #f4f6fb;
   overflow-y: auto;
+  overflow-x: clip;
 }
 
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
+  overflow-x: clip;
+}
+
+img,
+video,
+iframe,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+button,
+[role='button'],
+input,
+select,
+textarea,
+.heroButton,
+.profilePrimaryButton,
+.profileDangerButton {
+  min-height: 44px;
+}
+
+button,
+[role='button'],
+.heroButton,
+.profilePrimaryButton,
+.profileDangerButton,
+.dashboardLinkButton,
+.courseTextButton,
+.enrollmentToggleButton,
+.enrollmentOpenButton,
+.filePreviewDownloadButton {
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -74,12 +147,14 @@ h1, h2, h3 {
 }
 
 .heroButton {
-  display: inline-block;
+  display: inline-flex;
   text-decoration: none;
-  padding: 0.75rem 1.3rem;
-  border-radius: 10px;
+  min-height: var(--button-height);
+  padding: 0.65rem var(--button-padding-x);
+  border-radius: var(--button-radius);
   background-color: #2563eb;
   color: #ffffff;
+  font-size: var(--button-font-size);
   font-weight: 600;
   transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
@@ -284,18 +359,25 @@ h1, h2, h3 {
   background-color: rgba(15, 23, 42, 0.4);
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: clamp(0.6rem, 2vw, 1rem);
   z-index: 100;
   backdrop-filter: blur(2px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .lightboxCard {
   width: min(440px, 100%);
+  max-height: var(--modal-safe-height);
   background-color: #ffffff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  padding: 1.2rem;
+  padding: var(--card-padding);
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .authWelcomeCard,
@@ -321,8 +403,135 @@ h1, h2, h3 {
   text-transform: uppercase;
 }
 
+.deleteConfirmationCard {
+  width: min(468px, 100%);
+  align-items: center;
+  border-color: #e5e7eb;
+  border-radius: 8px;
+  padding: 1.45rem 1.35rem 1.3rem;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+}
+
+.deleteConfirmationIcon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.55rem;
+  color: #9ca3af;
+}
+
+.deleteConfirmationIcon svg {
+  width: 2.55rem;
+  height: 2.55rem;
+  fill: currentColor;
+}
+
+.deleteConfirmationMessage {
+  position: static !important;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: #4b5563;
+  font-size: clamp(1rem, 2.3vw, 1.12rem);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.deleteConfirmationImpact {
+  max-width: 24rem;
+  margin: 0.45rem auto 0;
+  color: #6b7280;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.deleteConfirmationActions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.15rem;
+}
+
+.deleteCancelButton,
+.deleteConfirmButton {
+  border-radius: 8px;
+  min-height: 2.45rem;
+  padding: 0.55rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.deleteCancelButton {
+  border: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  color: #374151;
+}
+
+.deleteCancelButton:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.deleteConfirmButton {
+  border: 1px solid #dc2626;
+  background-color: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.24);
+}
+
+.deleteConfirmButton:hover:not(:disabled) {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.deleteCancelButton:disabled,
+.deleteConfirmButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
+.appToast {
+  position: fixed;
+  top: 5.25rem;
+  right: 1rem;
+  z-index: 150;
+  width: min(24rem, calc(100vw - 2rem));
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  font-weight: 700;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  animation: toastSlideIn 0.18s ease-out;
+}
+
+.appToastSuccess {
+  border: 1px solid #86efac;
+  background-color: #ecfdf3;
+  color: #166534;
+}
+
+.appToastError {
+  border: 1px solid #fecaca;
+  background-color: #fff1f2;
+  color: #991b1b;
+}
+
 .lightboxCard h3 {
   margin-bottom: 0.4rem;
+}
+
+.lightboxCard > h3:first-of-type,
+.filePreviewHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-block: 0.15rem 0.5rem;
+  background-color: #ffffff;
 }
 
 .lightboxCard p {
@@ -337,6 +546,17 @@ h1, h2, h3 {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -534,11 +754,14 @@ h1, h2, h3 {
 
 .dashboardLinkButton {
   border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  border-radius: var(--button-radius);
   background-color: #eff6ff;
   color: #1d4ed8;
+  display: inline-flex;
+  min-height: var(--button-height);
+  font-size: var(--button-font-size);
   font-weight: 600;
-  padding: 0.5rem 0.8rem;
+  padding: 0.55rem var(--button-padding-x);
   cursor: pointer;
 }
 
@@ -1111,10 +1334,17 @@ h1, h2, h3 {
 }
 
 .profileModalActions {
-  margin-top: 1rem;
+  position: sticky;
+  bottom: calc(var(--card-padding) * -1);
+  margin: 1rem calc(var(--card-padding) * -1) calc(var(--card-padding) * -1);
+  padding: 0.75rem var(--card-padding) var(--card-padding);
+  border-top: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), #ffffff 28%);
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
+  flex-wrap: wrap;
+  z-index: 1;
 }
 
 .profileActionsInline {
@@ -1126,8 +1356,11 @@ h1, h2, h3 {
 
 .profilePrimaryButton,
 .profileDangerButton {
-  border-radius: 10px;
-  padding: 0.64rem 1rem;
+  border-radius: var(--button-radius);
+  min-height: var(--button-height);
+  display: inline-flex;
+  padding: 0.58rem var(--button-padding-x);
+  font-size: var(--button-font-size);
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
@@ -1400,12 +1633,14 @@ h1, h2, h3 {
 
 .courseModuleHeaderActions button {
   border: 1px solid #dbeafe;
-  border-radius: 8px;
+  border-radius: var(--button-radius);
   background-color: #eff6ff;
   color: #1d4ed8;
-  font-size: 0.8rem;
+  display: inline-flex;
+  min-height: 2.25rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  padding: 0.35rem 0.55rem;
+  padding: 0.42rem 0.68rem;
   cursor: pointer;
 }
 
@@ -1544,8 +1779,10 @@ h1, h2, h3 {
   border-radius: 999px;
   background-color: #eff6ff;
   color: #1d4ed8;
+  display: inline-flex;
+  min-height: 2.25rem;
   font-size: 0.78rem;
-  padding: 0.28rem 0.55rem;
+  padding: 0.35rem 0.65rem;
   cursor: pointer;
 }
 
@@ -1692,12 +1929,14 @@ h1, h2, h3 {
 
 .courseItemActions button {
   border: 1px solid #dbeafe;
-  border-radius: 8px;
+  border-radius: var(--button-radius);
   background-color: #eff6ff;
   color: #1d4ed8;
-  font-size: 0.8rem;
+  display: inline-flex;
+  min-height: 2.25rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  padding: 0.35rem 0.6rem;
+  padding: 0.42rem 0.68rem;
   cursor: pointer;
 }
 
@@ -1725,12 +1964,14 @@ h1, h2, h3 {
 
 .courseMaterialActions button {
   border: 1px solid #fecaca;
-  border-radius: 7px;
+  border-radius: var(--button-radius);
   background-color: #fff1f2;
   color: #b91c1c;
-  font-size: 0.8rem;
+  display: inline-flex;
+  min-height: 2.25rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.3rem 0.5rem;
+  padding: 0.4rem 0.65rem;
   cursor: pointer;
 }
 
@@ -1843,8 +2084,9 @@ h1, h2, h3 {
   position: absolute;
   top: -8px;
   right: -8px;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
   border: 1px solid #fecaca;
   border-radius: 50%;
   background-color: #fff1f2;
@@ -1885,6 +2127,30 @@ h1, h2, h3 {
 
 .assignmentTableRowSimple {
   grid-template-columns: 1.2fr 1.2fr 0.8fr;
+}
+
+.studentRosterTableRow {
+  grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.25fr) minmax(13rem, 1fr);
+  align-items: center;
+}
+
+.studentRosterTableRow > span {
+  overflow-wrap: anywhere;
+}
+
+.programSemesterCell {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.programSemesterCell strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.programSemesterCell small {
+  color: #64748b;
+  font-size: 0.82rem;
 }
 
 .adminUsersTable {
@@ -2004,8 +2270,11 @@ h1, h2, h3 {
 .enrollmentToggleButton,
 .enrollmentOpenButton {
   border: 0;
-  border-radius: 10px;
-  padding: 0.62rem 0.75rem;
+  border-radius: var(--button-radius);
+  display: inline-flex;
+  min-height: var(--button-height);
+  padding: 0.58rem var(--button-padding-x);
+  font-size: var(--button-font-size);
   font-weight: 700;
   cursor: pointer;
 }
@@ -2123,6 +2392,8 @@ h1, h2, h3 {
   border: none;
   background: transparent;
   color: #64748b;
+  width: 44px;
+  height: 44px;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
@@ -2341,16 +2612,23 @@ h1, h2, h3 {
   border-top: 1px solid #e2e8f0;
   padding: 0.6rem 0.75rem;
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .myCourseActions button {
   border: 1px solid #dbeafe;
-  border-radius: 8px;
+  border-radius: var(--button-radius);
   background-color: #eff6ff;
   color: #1d4ed8;
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 8.5rem;
+  min-height: var(--button-height);
+  font-size: var(--button-font-size);
   font-weight: 600;
-  padding: 0.35rem 0.65rem;
+  padding: 0.55rem var(--button-padding-x);
   cursor: pointer;
 }
 
@@ -2430,5 +2708,429 @@ h1, h2, h3 {
   .courseMaterialActions {
     flex-direction: row;
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 1200px) {
+  .myCoursesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminUsersTableHeader,
+  .adminUsersTableRow,
+  .assignmentTableHeader,
+  .assignmentTableRow {
+    gap: 0.55rem;
+    padding-inline: 0.75rem;
+  }
+
+  .assignmentSummaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .heroSection,
+  .infoSection,
+  .dashboardContent,
+  .dashboardHeader,
+  .dashboardSidebar,
+  .profileCard,
+  .courseContentManager,
+  .assignmentWorkspace,
+  .contentViewerWorkspace {
+    border-radius: 14px;
+  }
+
+  .dashboardSidebar {
+    position: static;
+    padding: 0.75rem;
+  }
+
+  .dashboardSidebarNav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0.6rem;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .dashboardMenuButton {
+    min-height: 44px;
+    width: 100%;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  .coursesPageHeader,
+  .myCoursesHeader,
+  .courseContentHeader,
+  .courseModulesHeader,
+  .assignmentWorkspaceHeader,
+  .contentViewerFileHeader,
+  .adminProfileTop {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .studentCourseViewSwitch,
+  .assignmentWorkspaceActions,
+  .adminProfileTopActions,
+  .courseItemActions,
+  .courseModuleHeaderActions {
+    width: 100%;
+  }
+
+  .studentCourseViewSwitch > *,
+  .assignmentWorkspaceActions > *,
+  .adminProfileTopActions > *,
+  .courseItemActions > *,
+  .courseModuleHeaderActions > * {
+    flex: 0 1 auto;
+  }
+
+  .assignmentTableHeader,
+  .adminUsersTableHeader {
+    display: none;
+  }
+
+  .assignmentTableRow,
+  .assignmentTableRowSimple,
+  .studentRosterTableRow,
+  .adminUsersTableRow,
+  .adminUsersTableRowWide,
+  .adminCoursesTableRowWide,
+  .adminReportsTableRowWide {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+    padding: 0.9rem;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .assignmentTableRow > *,
+  .adminUsersTableRow > * {
+    overflow-wrap: anywhere;
+  }
+
+  .adminUsersTable {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --page-gutter: 0.85rem;
+    --card-padding: 0.9rem;
+    --modal-safe-height: min(92vh, calc(100dvh - 1rem));
+    --button-height: var(--button-touch-height);
+    --button-font-size: 0.95rem;
+  }
+
+  body {
+    font-size: 0.96rem;
+  }
+
+  .heroSection {
+    margin-block: 0.4rem 1rem;
+    padding: 2rem 1rem;
+  }
+
+  .heroTitle {
+    font-size: clamp(1.8rem, 11vw, 2.45rem);
+  }
+
+  .heroSubtitle,
+  .authSubtext,
+  .dashboardSectionHeader p {
+    font-size: 0.96rem;
+  }
+
+  .heroActions,
+  .profileActionsInline,
+  .profileModalActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .heroActions .heroButton,
+  .profileActionsInline .profilePrimaryButton,
+  .profileActionsInline .profileDangerButton,
+  .profileModalActions .heroButton,
+  .profileModalActions .profilePrimaryButton,
+  .profileModalActions .profileDangerButton,
+  .authSubmitButton {
+    width: 100%;
+  }
+
+  .authPage {
+    margin: 0.75rem auto;
+    padding: 0;
+  }
+
+  .authCard,
+  .dashboardContent,
+  .dashboardHeader,
+  .dashboardSidebar,
+  .dashboardSectionContent,
+  .profileCard,
+  .courseContentManager {
+    padding: 0.9rem;
+  }
+
+  .lightboxOverlay {
+    align-items: end;
+    place-items: end center;
+    padding: 0.5rem;
+  }
+
+  .lightboxCard,
+  .courseModalCard,
+  .profileModalCard,
+  .adminProfileModal,
+  .filePreviewCard,
+  .profilePhotoPreviewCard {
+    width: 100%;
+    max-height: var(--modal-safe-height);
+    border-radius: 16px;
+  }
+
+  .lightboxCard h3 {
+    font-size: 1.12rem;
+    line-height: 1.25;
+  }
+
+  .deleteConfirmationCard {
+    width: min(100%, 28rem);
+    border-radius: 10px;
+    padding: 1.35rem 1rem 1.15rem;
+  }
+
+  .deleteConfirmationActions {
+    width: 100%;
+    gap: 0.65rem;
+  }
+
+  .deleteCancelButton,
+  .deleteConfirmButton {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 0.7rem;
+  }
+
+  .appToast {
+    top: auto;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
+
+  .profileModalActions {
+    gap: 0.5rem;
+  }
+
+  .authForm input,
+  .authForm select,
+  .authForm textarea,
+  .profileModalCard input,
+  .profileModalCard select,
+  .instructorStudentsToolbar input,
+  .instructorStudentsToolbar select,
+  .myCoursesFilters input,
+  .myCoursesFilters select,
+  .courseModuleToolbar input,
+  .adminProfileGrid input,
+  .adminProfileGrid select,
+  .adminRoleSelect,
+  .assignmentGradeInput {
+    min-height: 44px;
+    font-size: 1rem;
+  }
+
+  .dashboardShell,
+  .dashboardMain,
+  .dashboardPanel,
+  .myCoursesSection {
+    gap: 0.85rem;
+  }
+
+  .dashboardHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboardHeader h2,
+  .coursesPageHeader h2,
+  .myCoursesSection h2 {
+    font-size: clamp(1.25rem, 6vw, 1.55rem);
+  }
+
+  .dashboardRoleBadge {
+    align-self: flex-start;
+  }
+
+  .dashboardQuickGrid,
+  .dashboardChartGrid,
+  .studentProgressCourseList,
+  .profileDetailsGrid,
+  .profileModalGrid,
+  .adminProfileGrid,
+  .assignmentSummaryGrid,
+  .uploadFileGrid,
+  .courseContentStats,
+  .myCoursesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboardChartPlot {
+    height: 220px;
+  }
+
+  .studentProgressSummaryMeta,
+  .studentProgressCourseMeta,
+  .studentProgressCourseHeader,
+  .studentProgressItemList li,
+  .instructorStudentHeader,
+  .instructorStudentMeta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profileHeader {
+    text-align: center;
+    justify-items: center;
+  }
+
+  .profilePhotoPopup {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: auto;
+    bottom: 0.75rem;
+    transform: none;
+    z-index: 120;
+  }
+
+  .myCoursesFilters,
+  .courseModuleToolbar,
+  .instructorStudentsToolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .myCourseActions button,
+  .courseItemActions button,
+  .courseModuleHeaderActions button,
+  .courseMaterialActions button,
+  .courseInlineFileButton,
+  .contentViewerTab {
+    min-height: var(--button-touch-height);
+  }
+
+  .myCourseActions {
+    justify-content: flex-start;
+  }
+
+  .myCourseActions button {
+    width: auto;
+    min-width: 9rem;
+    flex: 0 0 auto;
+  }
+
+  .courseAccordionHeader,
+  .courseMaterialRow,
+  .courseItemCard {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .courseAccordionToggle {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .courseAccordionBody {
+    padding-left: 0;
+  }
+
+  .courseItemIcon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .uploadFileCard {
+    grid-template-columns: 1fr;
+  }
+
+  .assignmentWorkspaceHeader,
+  .assignmentEditorCard,
+  .assignmentDetailPanel,
+  .assignmentSubmissionTable,
+  .assignmentSummaryGrid,
+  .contentViewerFiles {
+    padding: 0.9rem;
+  }
+
+  .contentViewerFrame {
+    min-height: 62vh;
+  }
+
+  .filePreviewImage,
+  .filePreviewVideo,
+  .profilePhotoPreviewImage {
+    max-height: 58vh;
+  }
+
+  .filePreviewFrame {
+    min-height: 58vh;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboardSidebarTitle {
+    margin-bottom: 0.55rem;
+  }
+
+  .dashboardMenuButton {
+    padding-inline: 0.7rem;
+  }
+
+  .myCourseActions button,
+  .enrollmentActionButtons .enrollmentToggleButton,
+  .enrollmentActionButtons .enrollmentOpenButton {
+    width: 100%;
+  }
+
+  .adminProfileImage,
+  .adminProfileInitials {
+    width: 56px;
+    height: 56px;
+  }
+
+  .enrollmentActionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .lightboxOverlay {
+    align-items: start;
+  }
+
+  .lightboxCard {
+    max-height: calc(100dvh - 0.75rem);
+  }
+
+  .filePreviewImage,
+  .filePreviewVideo,
+  .profilePhotoPreviewImage {
+    max-height: 48vh;
+  }
+
+  .filePreviewFrame,
+  .contentViewerFrame {
+    min-height: 48vh;
   }
 }

@@ -1,5 +1,6 @@
 .sidebar {
   width: 250px;
+  flex: 0 0 250px;
   background-color: #ffffff;
   border-right: 1px solid #e5e7eb;
   padding: 1.5rem 1rem;
@@ -25,6 +26,9 @@
 .nav a {
   text-decoration: none;
   color: #374151;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
   font-weight: 500;
@@ -39,4 +43,25 @@
 .nav .active {
   background-color: #e0e7ff;
   color: #4f46e5;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.8rem;
+  }
+
+  .nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+  }
+
+  .nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
 }

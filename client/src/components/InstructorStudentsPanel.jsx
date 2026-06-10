@@ -31,6 +31,12 @@ function getStudentCourseStats(student, instructorCourses, enrollments, progress
   };
 }
 
+function getProgramSemesterLabel(student) {
+  const program = student.degreeProgram || 'Program not provided';
+  const semester = student.semester ? `Semester ${student.semester}` : 'Semester not selected';
+  return `${program} - ${semester}`;
+}
+
 export default function InstructorStudentsPanel() {
   const currentUser = getCurrentUser();
   const instructorEmail = String(currentUser?.email || '').toLowerCase();
@@ -192,6 +198,7 @@ export default function InstructorStudentsPanel() {
                       <div>
                         <h4>{student.name || 'Unnamed student'}</h4>
                         <p>{student.email}</p>
+                        <p>{getProgramSemesterLabel(student)}</p>
                       </div>
                       <strong>{student.progressPercent}%</strong>
                     </div>

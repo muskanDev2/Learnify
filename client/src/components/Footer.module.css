@@ -1,9 +1,13 @@
 .footer {
   background-color: #ffffff;
   border-top: 1px solid #e5e7eb;
-  padding: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
   text-align: center;
   color: #6b7280;
   font-size: 0.875rem;
   margin-top: auto;
+}
+
+.footer p {
+  margin: 0;
 }

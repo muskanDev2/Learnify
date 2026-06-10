@@ -11,6 +11,13 @@ export function updateMe(profileUpdates) {
   }).then((result) => result.data);
 }
 
+export function deleteMe(options = {}) {
+  return apiFetch('/api/users/me', {
+    method: 'DELETE',
+    body: JSON.stringify(options),
+  });
+}
+
 export function fetchUsers() {
   return apiFetch('/api/users').then((result) => result.data || []);
 }

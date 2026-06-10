@@ -32,6 +32,8 @@ import { fetchEnrollments } from '../utils/enrollmentApi';
 import { fetchStudents } from '../utils/userApi';
 import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
 import { uploadFiles } from '../utils/uploadApi';
+import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
+import Toast from '../components/Toast';
 
 const COURSES_KEY = 'learnify_courses';
 const ENROLLMENTS_KEY = 'learnify_enrollments';
@@ -41,6 +43,12 @@ const ASSIGNMENT_GRADING_OPTIONS = ['Not graded', 'Points based', 'Pass / Fail']
 
 function activityKey(courseId, itemId) {
   return `${courseId}:${itemId}`;
+}
+
+function formatProgramSemester(student) {
+  const program = student.degreeProgram || 'Program not provided';
+  const semester = student.semester ? `Semester ${student.semester}` : 'Semester not selected';
+  return { program, semester };
 }
 
 function getStoredCourses() {
@@ -381,6 +389,8 @@ function CoursesPage() {
   const [studentUploadProgress, setStudentUploadProgress] = useState(0);
   const [activeDropZone, setActiveDropZone] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [pendingDeleteAction, setPendingDeleteAction] = useState(null);
+  const [deleteToastMessage, setDeleteToastMessage] = useState('');
   const quizAttemptSubmittedRef = useRef(false);
   const quizStartAtMsRef = useRef(null);
   const quizAnswersRef = useRef({});
@@ -416,6 +426,27 @@ function CoursesPage() {
     quizTimeLimitMinutes: '20',
     quizMaxAttempts: '1',
   });
+
+  function showDeleteSuccess() {
+    setDeleteToastMessage('Item deleted successfully.');
+    window.setTimeout(() => setDeleteToastMessage(''), 4000);
+  }
+
+  function requestDeleteAction(config) {
+    setPendingDeleteAction({
+      title: 'Confirm Delete',
+      message: 'This action cannot be undone.',
+      impact: 'Deleted data will no longer be available.',
+      ...config,
+    });
+  }
+
+  async function confirmPendingDeleteAction() {
+    if (!pendingDeleteAction?.onConfirm) return;
+    await pendingDeleteAction.onConfirm();
+    setPendingDeleteAction(null);
+    showDeleteSuccess();
+  }
 
   const selectedCourse = useMemo(
     () => courses.find((course) => course.id === selectedCourseId) || courses[0] || null,
@@ -723,13 +754,21 @@ function CoursesPage() {
   function handleDeleteModule(moduleId) {
     if (!selectedCourse) return;
 
-    updateInstructorCourses((prev) =>
-      prev.map((course) =>
-        course.id === selectedCourse.id
-          ? { ...course, modules: course.modules.filter((module) => module.id !== moduleId) }
-          : course,
-      ),
-    );
+    const module = selectedCourse.modules.find((item) => item.id === moduleId);
+    requestDeleteAction({
+      title: 'Delete Module?',
+      message: `This will delete "${module?.title || 'this module'}" from the course.`,
+      impact: 'All items inside this module will also be removed. This action cannot be undone.',
+      onConfirm: () => {
+        updateInstructorCourses((prev) =>
+          prev.map((course) =>
+            course.id === selectedCourse.id
+              ? { ...course, modules: course.modules.filter((item) => item.id !== moduleId) }
+              : course,
+          ),
+        );
+      },
+    });
   }
 
   function toggleModuleExpanded(moduleId) {
@@ -1116,23 +1155,32 @@ function CoursesPage() {
   function deleteItem(moduleId, itemId) {
     if (!selectedCourse) return;
 
-    updateInstructorCourses((prev) =>
-      prev.map((course) =>
-        course.id === selectedCourse.id
-          ? {
-              ...course,
-              modules: course.modules.map((module) =>
-                module.id === moduleId
-                  ? {
-                      ...module,
-                      items: module.items.filter((item) => item.id !== itemId),
-                    }
-                  : module,
-              ),
-            }
-          : course,
-      ),
-    );
+    const targetModule = selectedCourse.modules.find((module) => module.id === moduleId);
+    const targetItem = targetModule?.items.find((item) => item.id === itemId);
+    requestDeleteAction({
+      title: 'Delete Course Item?',
+      message: `This will delete "${targetItem?.title || 'this item'}" from the module.`,
+      impact: 'Students will no longer see this content, assignment, or quiz in the course. This action cannot be undone.',
+      onConfirm: () => {
+        updateInstructorCourses((prev) =>
+          prev.map((course) =>
+            course.id === selectedCourse.id
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          items: module.items.filter((item) => item.id !== itemId),
+                        }
+                      : module,
+                  ),
+                }
+              : course,
+          ),
+        );
+      },
+    });
   }
 
   function openStoredFile(file) {
@@ -1385,7 +1433,14 @@ function CoursesPage() {
   }
 
   function removeQuizQuestionEditor(questionId) {
-    setQuizQuestionEditor((prev) => prev.filter((q) => q.id !== questionId));
+    requestDeleteAction({
+      title: 'Remove Quiz Question?',
+      message: 'This will remove the question from the quiz editor.',
+      impact: 'The question will be lost from this draft unless you cancel this action.',
+      onConfirm: () => {
+        setQuizQuestionEditor((prev) => prev.filter((q) => q.id !== questionId));
+      },
+    });
   }
 
   function updateQuizQuestionEditorText(questionId, value) {
@@ -1544,10 +1599,17 @@ function CoursesPage() {
   }
 
   function removeAssignmentAttachment(fileId) {
-    setAssignmentDetailForm((prev) => ({
-      ...prev,
-      attachments: prev.attachments.filter((file) => file.id !== fileId),
-    }));
+    requestDeleteAction({
+      title: 'Remove Attachment?',
+      message: 'This will remove the attachment from the assignment draft.',
+      impact: 'Students will not see this attachment after you save the assignment changes.',
+      onConfirm: () => {
+        setAssignmentDetailForm((prev) => ({
+          ...prev,
+          attachments: prev.attachments.filter((file) => file.id !== fileId),
+        }));
+      },
+    });
   }
 
   function updateAssignmentSubmissionGrade(submissionId, gradeValue) {
@@ -1640,6 +1702,7 @@ function CoursesPage() {
 
   return (
     <section className="dashboardShell">
+      <Toast message={deleteToastMessage} />
       <aside className="dashboardSidebar">
         <h3 className="dashboardSidebarTitle">Dashboard Menu</h3>
         <nav className="dashboardSidebarNav">
@@ -2781,22 +2844,28 @@ function CoursesPage() {
                     </div>
                   </div>
                   <section className="assignmentSubmissionTable">
-                    <div className="assignmentTableHeader">
+                    <div className="assignmentTableHeader studentRosterTableRow">
                       <span>Student Name</span>
                       <span>Email</span>
-                      <span>Role</span>
+                      <span>Program &amp; Semester</span>
                     </div>
                     {enrolledStudentsForSelectedCourse.length ? (
                       enrolledStudentsForSelectedCourse
-                        .map((student) => (
-                          <div key={student.email} className="assignmentTableRow assignmentTableRowSimple">
-                            <span>{student.name}</span>
-                            <span>{student.email}</span>
-                            <span>{student.role}</span>
-                          </div>
-                        ))
+                        .map((student) => {
+                          const programMeta = formatProgramSemester(student);
+                          return (
+                            <div key={student.email} className="assignmentTableRow assignmentTableRowSimple studentRosterTableRow">
+                              <span>{student.name}</span>
+                              <span>{student.email}</span>
+                              <span className="programSemesterCell">
+                                <strong>{programMeta.program}</strong>
+                                <small>{programMeta.semester}</small>
+                              </span>
+                            </div>
+                          );
+                        })
                     ) : (
-                      <div className="assignmentTableRow assignmentTableRowSimple">
+                      <div className="assignmentTableRow assignmentTableRowSimple studentRosterTableRow">
                         <span>No students enrolled yet.</span>
                         <span>-</span>
                         <span>-</span>
@@ -3062,6 +3131,16 @@ function CoursesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {pendingDeleteAction && (
+        <DeleteConfirmationDialog
+          title={pendingDeleteAction.title}
+          message={pendingDeleteAction.message}
+          impact={pendingDeleteAction.impact}
+          onCancel={() => setPendingDeleteAction(null)}
+          onConfirm={confirmPendingDeleteAction}
+        />
       )}
     </section>
   );
