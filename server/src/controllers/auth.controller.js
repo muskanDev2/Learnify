@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { notifyAdmins } = require('../services/notification.service');
 const { signToken } = require('../utils/token');
 
 const validRoles = ['admin', 'instructor', 'student'];
@@ -45,6 +46,15 @@ async function register(req, res, next) {
       role: normalizeRole(role),
       active: true,
     });
+
+    notifyAdmins({
+      title: user.role === 'instructor' ? 'New instructor registered' : 'New user registered',
+      message: `${user.name} registered as ${user.role}.`,
+      notificationType: user.role === 'instructor' ? 'instructor_registration' : 'user_registration',
+      relatedEntityId: user._id,
+      relatedEntityType: 'user',
+      actionUrl: '/dashboard?tab=users',
+    }).catch(() => {});
 
     return res.status(201).json(authResponse(user, 'Registration successful!'));
   } catch (error) {

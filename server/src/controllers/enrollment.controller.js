@@ -2,6 +2,7 @@ const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 const LmsSnapshot = require('../models/LmsSnapshot');
 const User = require('../models/User');
+const { createNotification } = require('../services/notification.service');
 
 async function getActiveStudentEmails() {
   const students = await User.find({ role: 'student', active: { $ne: false } }).select('email');
@@ -120,6 +121,26 @@ async function enrollInCourse(req, res, next) {
       { returnDocument: 'after', upsert: true },
     );
 
+    const instructor = await User.findOne({ email: String(course.ownerEmail || '').toLowerCase() }).select('_id');
+    createNotification(req.user._id, {
+      title: 'Course enrollment confirmed',
+      message: `You are now enrolled in ${course.title}.`,
+      notificationType: 'course_enrollment',
+      relatedEntityId: course.id,
+      relatedEntityType: 'course',
+      actionUrl: `/courses?courseId=${course.id}`,
+    }).catch(() => {});
+    if (instructor) {
+      createNotification(instructor._id, {
+        title: 'Student enrolled in course',
+        message: `${req.user.name} enrolled in ${course.title}.`,
+        notificationType: 'student_enrolled',
+        relatedEntityId: course.id,
+        relatedEntityType: 'course',
+        actionUrl: `/courses?courseId=${course.id}`,
+      }).catch(() => {});
+    }
+
     const activeStudentEmails = await getActiveStudentEmails();
     const enrollments = await Enrollment.find({ status: { $ne: 'dropped' } });
 
@@ -182,6 +203,17 @@ async function manageEnrollment(req, res, next) {
       },
       { returnDocument: 'after', upsert: true },
     );
+
+    if (status === 'active') {
+      createNotification(student._id, {
+        title: 'New course enrollment',
+        message: `You have been enrolled in ${course.title}.`,
+        notificationType: 'course_enrollment',
+        relatedEntityId: course.id,
+        relatedEntityType: 'course',
+        actionUrl: `/courses?courseId=${course.id}`,
+      }).catch(() => {});
+    }
 
     const activeStudentEmails = await getActiveStudentEmails();
     const enrollments = await Enrollment.find({ status: { $ne: 'dropped' } });

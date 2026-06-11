@@ -71,7 +71,12 @@ async function getCloudinarySignature(req, res, next) {
         apiKey: cloudinaryConfig.apiKey,
         folder,
         timestamp,
-        signature: createCloudinarySignature({ folder, timestamp }),
+        uploadPreset: cloudinaryConfig.uploadPreset,
+        signature: createCloudinarySignature({
+          folder,
+          timestamp,
+          ...(cloudinaryConfig.uploadPreset ? { upload_preset: cloudinaryConfig.uploadPreset } : {}),
+        }),
       },
     });
   } catch (error) {

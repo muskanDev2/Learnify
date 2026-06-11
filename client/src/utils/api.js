@@ -10,14 +10,21 @@ export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('learnify_auth_token');
   const isFormData = options.body instanceof FormData;
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch (error) {
+    throw new Error(
+      `Could not reach the Learnify API at ${API_BASE}. Make sure the backend server is running and MongoDB is connected.`,
+    );
+  }
 
   const data = await response.json().catch(() => ({}));
 

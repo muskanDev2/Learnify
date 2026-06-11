@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+  changeMyPassword,
   deleteMe,
   deleteUser,
   getMe,
@@ -14,6 +15,7 @@ const router = express.Router();
 
 router.get('/me', requireAuth, getMe);
 router.put('/me', requireAuth, updateMe);
+router.put('/me/password', requireAuth, changeMyPassword);
 router.delete('/me', requireAuth, deleteMe);
 router.get('/students', requireAuth, requireRoles('admin', 'instructor'), listActiveStudents);
 router.get('/', requireAuth, requireAdmin, listUsers);

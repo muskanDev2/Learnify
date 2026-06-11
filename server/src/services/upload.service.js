@@ -30,6 +30,17 @@ async function deleteTempFile(filePath) {
   await fs.unlink(filePath).catch(() => {});
 }
 
+async function moveFileAcrossDevices(sourcePath, destinationPath) {
+  try {
+    await fs.rename(sourcePath, destinationPath);
+  } catch (error) {
+    if (error.code !== 'EXDEV') throw error;
+
+    await fs.copyFile(sourcePath, destinationPath);
+    await deleteTempFile(sourcePath);
+  }
+}
+
 async function uploadToCloudinary(file) {
   const { cloudinary: cloudinaryConfig } = getEnv();
   const resourceType = getCloudinaryResourceType(file.mimetype);
@@ -45,6 +56,7 @@ async function uploadToCloudinary(file) {
     resource_type: resourceType,
     use_filename: true,
     unique_filename: true,
+    ...(cloudinaryConfig.uploadPreset ? { upload_preset: cloudinaryConfig.uploadPreset } : {}),
   };
 
   const result = shouldUseChunkedUpload(file)
@@ -75,7 +87,7 @@ async function moveToLocalUploads(file, req) {
   await fs.mkdir(localUploadDir, { recursive: true });
   const safeName = `${Date.now()}-${file.filename}-${file.originalname.replace(/[^\w.-]/g, '_')}`;
   const finalPath = path.join(localUploadDir, safeName);
-  await fs.rename(file.path, finalPath);
+  await moveFileAcrossDevices(file.path, finalPath);
 
   return {
     url: `${req.protocol}://${req.get('host')}/uploads/${safeName}`,

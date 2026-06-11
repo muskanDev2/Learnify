@@ -1,6 +1,7 @@
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
 const LmsSnapshot = require('../models/LmsSnapshot');
+const { notifyAdmins, notifyCourseStudents } = require('../services/notification.service');
 const { sanitizeCourseModules, sanitizeCourses } = require('../utils/sanitizeCoursePayload');
 
 function buildStarterModules() {
@@ -17,6 +18,93 @@ function canManageCourse(user, course) {
   const userEmail = String(user.email || '').toLowerCase();
 
   return role === 'admin' || String(course.ownerEmail || '').toLowerCase() === userEmail;
+}
+
+function flattenCourseItems(course) {
+  return (course.modules || []).flatMap((module) =>
+    (module.items || []).map((item) => ({
+      ...item,
+      moduleTitle: module.title,
+    })),
+  );
+}
+
+function getCourseItemKey(item) {
+  return `${item.type || 'content'}:${item.id}`;
+}
+
+function getNewCourseItems(beforeCourse, afterCourse) {
+  const previousKeys = new Set(flattenCourseItems(beforeCourse).map(getCourseItemKey));
+  return flattenCourseItems(afterCourse).filter((item) => !previousKeys.has(getCourseItemKey(item)));
+}
+
+function getChangedAssignmentDeadlines(beforeCourse, afterCourse) {
+  const previousAssignments = new Map(
+    flattenCourseItems(beforeCourse)
+      .filter((item) => item.type === 'assignment')
+      .map((item) => [getCourseItemKey(item), item]),
+  );
+
+  return flattenCourseItems(afterCourse)
+    .filter((item) => item.type === 'assignment')
+    .map((item) => {
+      const previous = previousAssignments.get(getCourseItemKey(item));
+      if (!previous) return null;
+
+      const previousDueAt = String(previous.dueAt || previous.dueDate || '');
+      const nextDueAt = String(item.dueAt || item.dueDate || '');
+      if (previousDueAt === nextDueAt) return null;
+
+      return {
+        item,
+        previousDueAt,
+        nextDueAt,
+      };
+    })
+    .filter(Boolean);
+}
+
+function formatDueDate(value) {
+  if (!value) return 'no due date';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function buildCourseItemActionUrl(courseId, item) {
+  if (item.type === 'assignment') return `/courses?courseId=${courseId}&assignmentId=${item.id}`;
+  if (item.type === 'quiz') return `/courses?courseId=${courseId}&quizId=${item.id}`;
+  return `/courses?courseId=${courseId}&contentId=${item.id}`;
+}
+
+function getNewItemNotification(item, course) {
+  if (item.type === 'assignment') {
+    return {
+      title: 'New assignment posted',
+      message: `${item.title || 'An assignment'} has been posted in ${course.title}.`,
+      notificationType: 'assignment_created',
+    };
+  }
+
+  if (item.type === 'quiz') {
+    return {
+      title: 'New quiz created',
+      message: `${item.title || 'A quiz'} is now available in ${course.title}.`,
+      notificationType: 'quiz_created',
+    };
+  }
+
+  return {
+    title: 'New course material uploaded',
+    message: `${item.title || 'New material'} has been uploaded in ${course.title}.`,
+    notificationType: 'course_material_uploaded',
+  };
 }
 
 async function listCourses(req, res, next) {
@@ -66,6 +154,15 @@ async function createCourse(req, res, next) {
       ownerEmail: req.user.email,
       modules: buildStarterModules(),
     });
+
+    notifyAdmins({
+      title: 'New course created',
+      message: `${course.title} was created by ${req.user.name}.`,
+      notificationType: 'course_created',
+      relatedEntityId: course.id,
+      relatedEntityType: 'course',
+      actionUrl: `/courses?courseId=${course.id}`,
+    }).catch(() => {});
 
     return res.status(201).json({
       success: true,
@@ -118,6 +215,38 @@ async function updateCourse(req, res, next) {
         message: 'Course was removed before it could be updated. Please refresh and try again.',
       });
     }
+
+    const newItems = getNewCourseItems(course, updatedCourse);
+    newItems.forEach((item) => {
+      const notification = getNewItemNotification(item, updatedCourse);
+      notifyCourseStudents(
+        updatedCourse,
+        {
+          ...notification,
+          relatedEntityId: item.id,
+          courseId: updatedCourse.id,
+          relatedEntityType: item.type || 'content',
+          actionUrl: buildCourseItemActionUrl(updatedCourse.id, item),
+        },
+        Enrollment,
+      ).catch(() => {});
+    });
+
+    getChangedAssignmentDeadlines(course, updatedCourse).forEach(({ item, nextDueAt }) => {
+      notifyCourseStudents(
+        updatedCourse,
+        {
+          title: 'Assignment deadline updated',
+          message: `${item.title || 'An assignment'} in ${updatedCourse.title} is now due ${formatDueDate(nextDueAt)}.`,
+          notificationType: 'assignment_deadline_updated',
+          relatedEntityId: item.id,
+          courseId: updatedCourse.id,
+          relatedEntityType: 'assignment',
+          actionUrl: buildCourseItemActionUrl(updatedCourse.id, item),
+        },
+        Enrollment,
+      ).catch(() => {});
+    });
 
     return res.json({
       success: true,

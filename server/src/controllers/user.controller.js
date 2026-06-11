@@ -7,6 +7,7 @@ const Progress = require('../models/Progress');
 const QuizAttempt = require('../models/QuizAttempt');
 const StudentNote = require('../models/StudentNote');
 const UploadAsset = require('../models/UploadAsset');
+const Notification = require('../models/Notification');
 
 const allowedProfileFields = [
   'name',
@@ -34,6 +35,7 @@ const allowedAdminFields = [
   'profileImage',
 ];
 const roles = ['admin', 'instructor', 'student'];
+const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
 function normalizeRole(role) {
   const value = String(role || '').toLowerCase().trim();
@@ -102,6 +104,64 @@ async function updateMe(req, res, next) {
       success: true,
       message: 'Profile updated successfully.',
       data: req.user.toClient(),
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function changeMyPassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword, confirmNewPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password, new password, and confirmation are required.',
+      });
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password and confirmation do not match.',
+      });
+    }
+
+    if (!strongPasswordPattern.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
+      });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect.',
+      });
+    }
+
+    const isSamePassword = await user.comparePassword(newPassword);
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be different from the current password.',
+      });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Password updated successfully.',
     });
   } catch (error) {
     return next(error);
@@ -248,6 +308,7 @@ async function deleteMe(req, res, next) {
       AssignmentSubmission.deleteMany({ student: req.user._id }),
       StudentNote.deleteMany({ student: req.user._id }),
       UploadAsset.deleteMany({ owner: req.user._id }),
+      Notification.deleteMany({ user: req.user._id }),
       AssignmentSubmission.updateMany({ gradedBy: req.user._id }, { $unset: { gradedBy: '', gradedAt: '' } }),
     ]);
 
@@ -279,6 +340,7 @@ async function deleteMe(req, res, next) {
 }
 
 module.exports = {
+  changeMyPassword,
   deleteMe,
   deleteUser,
   getMe,

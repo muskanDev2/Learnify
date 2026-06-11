@@ -57,6 +57,24 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    notificationPreferences: {
+      reminders: {
+        type: Boolean,
+        default: true,
+      },
+      announcements: {
+        type: Boolean,
+        default: true,
+      },
+      grades: {
+        type: Boolean,
+        default: true,
+      },
+      courseMaterials: {
+        type: Boolean,
+        default: true,
+      },
+    },
   },
   {
     timestamps: true,
@@ -89,6 +107,12 @@ userSchema.methods.toClient = function toClient() {
     profileImage: this.profileImage,
     countryLocked: this.countryLocked,
     genderLocked: this.genderLocked,
+    notificationPreferences: {
+      reminders: this.notificationPreferences?.reminders ?? true,
+      announcements: this.notificationPreferences?.announcements ?? true,
+      grades: this.notificationPreferences?.grades ?? true,
+      courseMaterials: this.notificationPreferences?.courseMaterials ?? true,
+    },
   };
 };
 

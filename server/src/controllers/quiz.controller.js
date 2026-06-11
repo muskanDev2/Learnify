@@ -1,5 +1,7 @@
 const QuizAttempt = require('../models/QuizAttempt');
 const Progress = require('../models/Progress');
+const User = require('../models/User');
+const { createNotification } = require('../services/notification.service');
 const { recalculateCourseProgress, resolveCourseById } = require('../utils/lmsProgress');
 
 function canManageCourse(user, course) {
@@ -107,6 +109,19 @@ async function submitQuizAttempt(req, res, next) {
     );
 
     await recalculateCourseProgress(req.user, course);
+
+    const instructor = await User.findOne({ email: String(course.ownerEmail || '').toLowerCase() }).select('_id');
+    if (instructor) {
+      createNotification(instructor._id, {
+        title: 'Quiz submission received',
+        message: `${req.user.name} submitted ${quiz.title || 'a quiz'} in ${course.title}.`,
+        notificationType: 'quiz_submitted',
+        relatedEntityId: attempt._id,
+        courseId: course.id,
+        relatedEntityType: 'quiz_attempt',
+        actionUrl: `/courses?courseId=${course.id}&quizId=${quiz.id}`,
+      }).catch(() => {});
+    }
 
     return res.status(201).json({
       success: true,

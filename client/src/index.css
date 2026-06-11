@@ -496,6 +496,529 @@ h1, h2, h3 {
   transform: none;
 }
 
+.changePasswordCard {
+  width: min(520px, 100%);
+}
+
+.changePasswordForm {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.changePasswordField {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.changePasswordField label {
+  color: #1e293b;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.passwordInputWrap {
+  position: relative;
+}
+
+.passwordInputWrap input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
+  min-height: 44px;
+  padding: 0.68rem 3rem 0.68rem 0.8rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.passwordInputWrap input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.passwordToggleButton {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  width: 2.35rem;
+  height: 2.35rem;
+  min-height: 2.35rem;
+  border: 0;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+
+.passwordToggleButton:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.passwordToggleButton svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
+}
+
+.passwordRequirementList {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.passwordRequirementList li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.passwordRequirementList span {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.passwordRequirementPassed {
+  color: #166534;
+}
+
+.passwordRequirementPassed span {
+  color: #16a34a;
+}
+
+.notificationsPage {
+  display: grid;
+  gap: 1rem;
+}
+
+.notificationsPageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1rem, 2.4vw, 1.5rem);
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+}
+
+.notificationsPageHeader h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(1.55rem, 3vw, 2.1rem);
+}
+
+.notificationsPageHeader p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+}
+
+.notificationsFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.notificationsFilters button,
+.notificationsPagination button {
+  min-height: var(--button-height);
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: #475569;
+  padding: 0.45rem 0.95rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.notificationsFilters button:hover,
+.notificationsPagination button:hover:not(:disabled),
+.notificationsFilterActive {
+  border-color: #2563eb !important;
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+.notificationsList {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.notificationCard {
+  display: grid;
+  gap: 0.85rem;
+  padding: clamp(1rem, 2vw, 1.25rem);
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background-color: #ffffff;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.notificationCardUnread {
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 70%);
+}
+
+.notificationCardUnread::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background-color: #2563eb;
+}
+
+.notificationCardHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.notificationTypeIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.notificationCardHeader .notificationTypeIcon {
+  color: #1d4ed8;
+}
+
+.notificationCardHeader h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.notificationCardHeader span,
+.notificationCard p {
+  color: #64748b;
+}
+
+.notificationCard p {
+  margin: 0;
+  line-height: 1.55;
+  padding-left: 3.2rem;
+}
+
+.notificationCardHeader strong {
+  height: fit-content;
+  border-radius: 999px;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.notificationCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-left: 3.2rem;
+}
+
+.notificationsEmptyState,
+.notificationsPagination {
+  border: 1px dashed #cbd5e1;
+  border-radius: 18px;
+  background-color: #ffffff;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  text-align: center;
+}
+
+.notificationsEmptyState h3 {
+  margin: 0 0 0.25rem;
+  color: #0f172a;
+}
+
+.notificationsEmptyState p {
+  margin: 0;
+  color: #64748b;
+}
+
+.notificationsPagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+}
+
+.notificationsPagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notificationPreferencesPanel {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) repeat(4, auto);
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background-color: #ffffff;
+  padding: 1rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.notificationScrollTarget {
+  scroll-margin-top: 5.5rem;
+}
+
+.courseItemCardDeepLinked {
+  border-color: #2563eb !important;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 70%);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18), 0 16px 34px rgba(15, 23, 42, 0.1);
+  animation: notificationTargetPulse 1.2s ease-in-out 2;
+}
+
+@keyframes notificationTargetPulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.notificationPreferencesPanel h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.notificationPreferencesPanel p {
+  margin: 0.15rem 0 0;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.notificationPreferenceToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.notificationPreferenceToggle input {
+  min-height: auto;
+  width: 1rem;
+  height: 1rem;
+}
+
+.assignmentStatusChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 1.8rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.assignmentStatus-submitted {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.assignmentStatus-late {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.assignmentStatus-pending {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.assignmentStatus-graded {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.assignmentStudentSubmissionHeader,
+.assignmentTrackingHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.assignmentStudentSubmissionHeader h4,
+.assignmentTrackingHeader h4 {
+  margin: 0;
+}
+
+.assignmentStudentSubmissionHeader p,
+.assignmentTrackingHeader p,
+.assignmentMutedText,
+.assignmentFeedbackText {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.assignmentCurrentSubmission {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0.85rem 0;
+  padding: 0.9rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background-color: #eff6ff;
+}
+
+.assignmentPolicyGroup {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.assignmentPolicyLabel {
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.assignmentFileTypeGrid,
+.assignmentSubmissionFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.assignmentTypeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background-color: #ffffff;
+  padding: 0.35rem 0.65rem;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.assignmentTypeChip input {
+  min-height: auto;
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.assignmentSubmissionFilters button {
+  min-height: 2.15rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: #475569;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.assignmentSubmissionFilters button:hover,
+.assignmentFilterActive {
+  border-color: #2563eb !important;
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+.assignmentUploadPreviewCard {
+  align-items: center;
+}
+
+.assignmentMiniPreview {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  object-fit: cover;
+  background-color: #e2e8f0;
+  color: #334155;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.assignmentVideoPreview {
+  background-color: #111827;
+  color: #ffffff;
+}
+
+.assignmentReviewCell {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.assignmentFeedbackInput {
+  min-height: 4.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  resize: vertical;
+}
+
+.assignmentFileButton {
+  margin: 0.15rem;
+}
+
+.assignmentSubmissionPreviewList {
+  display: grid;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+.assignmentSubmissionPreviewCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 0.85rem;
+  background-color: #ffffff;
+}
+
+.assignmentSubmissionPreviewCard div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.assignmentSubmissionPreviewCard small {
+  color: #64748b;
+}
+
 .appToast {
   position: fixed;
   top: 5.25rem;
@@ -1871,13 +2394,14 @@ h1, h2, h3 {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background-color: #ffffff;
-  padding: 0.65rem;
+  padding: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.6rem;
   align-items: center;
   color: #0f172a;
-  cursor: pointer;
+  cursor: default;
+  position: relative;
   text-align: left;
 }
 
@@ -1911,6 +2435,56 @@ h1, h2, h3 {
   margin-top: 0.15rem;
   color: #64748b;
   font-size: 0.78rem;
+}
+
+.assignmentUploadOpenButton {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem;
+  text-align: left;
+}
+
+.assignmentUploadRemoveButton {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  min-height: 0;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: #dc2626;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.86);
+  transition: opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+}
+
+.assignmentUploadPreviewCard:hover .assignmentUploadRemoveButton,
+.assignmentUploadPreviewCard:focus-within .assignmentUploadRemoveButton {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.assignmentUploadRemoveButton:hover,
+.assignmentUploadRemoveButton:focus-visible {
+  background-color: #fee2e2;
+  outline: none;
 }
 
 .uploadFileOpenButton {
@@ -3084,6 +3658,67 @@ h1, h2, h3 {
 
   .filePreviewFrame {
     min-height: 58vh;
+  }
+
+  .notificationsPageHeader,
+  .notificationCardHeader {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .notificationCard p,
+  .notificationCardActions {
+    padding-left: 0;
+  }
+
+  .notificationsPageHeader .profilePrimaryButton,
+  .notificationCardActions button,
+  .notificationsPagination button {
+    width: 100%;
+  }
+
+  .notificationsFilters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .notificationsFilters button {
+    padding-inline: 0.5rem;
+  }
+
+  .notificationsPagination {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .notificationPreferencesPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .notificationPreferenceToggle {
+    justify-content: flex-start;
+    white-space: normal;
+  }
+
+  .assignmentStudentSubmissionHeader,
+  .assignmentTrackingHeader,
+  .assignmentSubmissionPreviewCard {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .assignmentSubmissionFilters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .assignmentReviewCell .profilePrimaryButton,
+  .assignmentReviewCell .heroButton,
+  .assignmentCurrentSubmission .profileDangerButton,
+  .assignmentSubmissionPreviewCard .profilePrimaryButton,
+  .assignmentSubmissionPreviewCard .heroButton {
+    width: 100%;
   }
 }
 

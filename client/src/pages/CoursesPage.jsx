@@ -23,6 +23,7 @@ import {
   submitQuizAttempt as submitQuizAttemptRequest,
 } from '../utils/quizApi';
 import {
+  deleteAssignmentSubmission,
   fetchAssignmentSubmissions,
   fetchMyAssignmentSubmission,
   gradeAssignmentSubmission,
@@ -40,6 +41,9 @@ const ENROLLMENTS_KEY = 'learnify_enrollments';
 const STUDENT_PROGRESS_KEY = 'learnify_student_progress';
 const CONTENT_FILE_TYPES = ['pdf', 'video', 'ppt', 'doc', 'txt', 'image'];
 const ASSIGNMENT_GRADING_OPTIONS = ['Not graded', 'Points based', 'Pass / Fail'];
+const ASSIGNMENT_FILE_TYPES = ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'webp', 'mp4', 'mov', 'avi', 'ppt', 'pptx', 'zip', 'rar'];
+const ASSIGNMENT_FILE_ACCEPT = ASSIGNMENT_FILE_TYPES.map((type) => `.${type}`).join(',');
+const DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB = 250;
 
 function activityKey(courseId, itemId) {
   return `${courseId}:${itemId}`;
@@ -124,6 +128,92 @@ function getFileIconLabel(file) {
   if (mimeType.includes('powerpoint') || /\.(ppt|pptx)$/.test(name)) return 'PPT';
   if (mimeType.includes('word') || /\.(doc|docx)$/.test(name)) return 'DOC';
   return 'FILE';
+}
+
+function getSubmissionFileType(file) {
+  const explicit = String(file?.fileType || '').toLowerCase();
+  if (explicit) return explicit;
+  const mimeType = String(file?.mimeType || '').toLowerCase();
+  const name = String(file?.originalFilename || file?.name || '').toLowerCase();
+  if (mimeType.startsWith('image/') || /\.(png|jpe?g|webp)$/.test(name)) return 'image';
+  if (mimeType.startsWith('video/') || /\.(mp4|mov|avi)$/.test(name)) return 'video';
+  if (mimeType.includes('pdf') || name.endsWith('.pdf')) return 'pdf';
+  if (mimeType.includes('powerpoint') || /\.(ppt|pptx)$/.test(name)) return 'ppt';
+  if (mimeType.includes('word') || /\.(doc|docx)$/.test(name)) return 'doc';
+  if (name.endsWith('.zip') || name.endsWith('.rar')) return 'archive';
+  if (name.endsWith('.txt')) return 'txt';
+  return 'file';
+}
+
+function getAssignmentAllowedTypes(item) {
+  return Array.isArray(item?.allowedFileTypes) && item.allowedFileTypes.length
+    ? item.allowedFileTypes
+    : ASSIGNMENT_FILE_TYPES;
+}
+
+function getAssignmentMaxFileSizeMb(item) {
+  const configuredSize = Number(item?.maxFileSizeMb || item?.maxFileSize || DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB);
+  // Existing assignments were created when 25 MB was the default; treat that value as legacy default.
+  return configuredSize === 25 ? DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB : configuredSize;
+}
+
+function getStudentSubmissionStatus(submission, assignment) {
+  if (!submission) return 'pending';
+  if (submission.status === 'graded' || submission.gradedAt) return 'graded';
+  if (submission.status === 'late') return 'late';
+  if (assignment?.dueAt && new Date(submission.submittedAt) > new Date(assignment.dueAt)) return 'late';
+  return 'submitted';
+}
+
+function getSubmissionStatusLabel(status) {
+  return {
+    submitted: 'Submitted',
+    late: 'Late Submission',
+    pending: 'Not Submitted',
+    graded: 'Graded',
+  }[status] || 'Not Submitted';
+}
+
+function isAssignmentClosed(assignment) {
+  if (!assignment) return true;
+  const isPastDue = shouldAutoCloseSubmission(assignment.dueAt);
+  if (isPastDue && assignment.allowLateSubmission === true) return assignment.submissionOpen !== false;
+  return assignment.submissionOpen === false || isPastDue;
+}
+
+function getLocalFileType(file) {
+  const mimeType = String(file.type || '').toLowerCase();
+  const name = String(file.name || '').toLowerCase();
+  if (mimeType.startsWith('image/jpeg') || /\.(jpe?g)$/.test(name)) return 'jpg';
+  if (mimeType.startsWith('image/png') || name.endsWith('.png')) return 'png';
+  if (mimeType.startsWith('image/webp') || name.endsWith('.webp')) return 'webp';
+  if (mimeType === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (mimeType.includes('wordprocessingml') || name.endsWith('.docx')) return 'docx';
+  if (mimeType.includes('msword') || name.endsWith('.doc')) return 'doc';
+  if (mimeType.includes('presentationml') || name.endsWith('.pptx')) return 'pptx';
+  if (mimeType.includes('powerpoint') || name.endsWith('.ppt')) return 'ppt';
+  if (mimeType.startsWith('video/mp4') || name.endsWith('.mp4')) return 'mp4';
+  if (mimeType.startsWith('video/quicktime') || name.endsWith('.mov')) return 'mov';
+  if (mimeType.includes('x-msvideo') || name.endsWith('.avi')) return 'avi';
+  if (mimeType === 'text/plain' || name.endsWith('.txt')) return 'txt';
+  if (mimeType.includes('zip') || name.endsWith('.zip')) return 'zip';
+  if (mimeType.includes('rar') || name.endsWith('.rar')) return 'rar';
+  return '';
+}
+
+function validateAssignmentFiles(files, assignment) {
+  const allowedTypes = new Set(getAssignmentAllowedTypes(assignment));
+  const maxBytes = getAssignmentMaxFileSizeMb(assignment) * 1024 * 1024;
+  const fileList = Array.from(files || []);
+  const invalid = fileList.find((file) => !allowedTypes.has(getLocalFileType(file)));
+  if (invalid) return `${invalid.name} is not an allowed file type for this assignment.`;
+  const oversized = fileList.find((file) => file.size > maxBytes);
+  if (oversized) return `${oversized.name} exceeds the ${getAssignmentMaxFileSizeMb(assignment)} MB file limit.`;
+  return '';
+}
+
+function getUploadFileKey(file) {
+  return String(file?.id || file?.publicId || file?.url || `${file?.name || file?.originalFilename}-${file?.size || ''}`);
 }
 
 function formatFileSize(bytes) {
@@ -342,7 +432,14 @@ function CoursesPage() {
   const [students, setStudents] = useState([]);
   const studentEnrolledIds = allEnrollments[userEmail] || [];
   const studentEnrolledIdsKey = studentEnrolledIds.join(',');
-  const requestedCourseId = location.state?.courseId || null;
+  const courseQueryParam = new URLSearchParams(location.search).get('courseId');
+  const assignmentQueryParam = new URLSearchParams(location.search).get('assignmentId');
+  const contentQueryParam = new URLSearchParams(location.search).get('contentId');
+  const quizQueryParam = new URLSearchParams(location.search).get('quizId');
+  const requestedCourseId = courseQueryParam ? Number(courseQueryParam) : location.state?.courseId || null;
+  const requestedAssignmentId = assignmentQueryParam || location.state?.assignmentId || null;
+  const requestedContentId = contentQueryParam || location.state?.contentId || null;
+  const requestedQuizId = quizQueryParam || location.state?.quizId || null;
 
   const [courses, setCourses] = useState(() =>
     getStoredCourses()
@@ -375,6 +472,9 @@ function CoursesPage() {
   const [previewFile, setPreviewFile] = useState(null);
   const [assignmentEditorMode, setAssignmentEditorMode] = useState('view');
   const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [submissionFilter, setSubmissionFilter] = useState('all');
+  const [previewSubmission, setPreviewSubmission] = useState(null);
+  const [gradingDrafts, setGradingDrafts] = useState({});
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizResult, setQuizResult] = useState(null);
   const [quizStarted, setQuizStarted] = useState(false);
@@ -396,7 +496,10 @@ function CoursesPage() {
   const quizAnswersRef = useRef({});
   // Holds the active countdown interval id so submitQuiz can pause the timer immediately.
   const quizTimerIdRef = useRef(null);
+  const handledDeepLinkRef = useRef('');
   const [studentAssignmentUploadFiles, setStudentAssignmentUploadFiles] = useState([]);
+  const [deepLinkTarget, setDeepLinkTarget] = useState(null);
+  const [highlightedItemKey, setHighlightedItemKey] = useState('');
   const [assignmentDetailForm, setAssignmentDetailForm] = useState({
     instructions: '',
     gradingStatus: 'Not graded',
@@ -405,6 +508,10 @@ function CoursesPage() {
     fileSubmissionEnabled: false,
     openedAt: '',
     dueAt: '',
+    allowedFileTypes: ASSIGNMENT_FILE_TYPES,
+    maxFileSizeMb: DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB,
+    allowResubmission: true,
+    allowLateSubmission: true,
     attachments: [],
     submissions: [],
   });
@@ -420,6 +527,10 @@ function CoursesPage() {
     instructions: '',
     openedAt: '',
     dueAt: '',
+    allowedFileTypes: ASSIGNMENT_FILE_TYPES,
+    maxFileSizeMb: DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB,
+    allowResubmission: true,
+    allowLateSubmission: true,
     questionsCount: '5',
     quizQuestions: [],
     quizInstructions: '',
@@ -559,12 +670,42 @@ function CoursesPage() {
     );
   }, [assignmentSubmissionsByKey, selectedAssignmentItem, selectedCourse]);
 
+  const myAssignmentSubmission = useMemo(() => {
+    if (!currentUser?.email) return null;
+    const email = String(currentUser.email).toLowerCase();
+    return selectedAssignmentSubmissions.find((submission) => {
+      const submissionEmail = String(submission.student?.email || submission.studentEmail || '').toLowerCase();
+      return submissionEmail === email || String(submission.student?._id || submission.student) === String(currentUser.id || currentUser._id);
+    }) || null;
+  }, [currentUser, selectedAssignmentSubmissions]);
+
   const enrolledStudentsForSelectedCourse = useMemo(() => {
     if (!selectedCourse) return [];
     return students.filter((user) =>
       (allEnrollments[user.email?.toLowerCase()] || []).includes(selectedCourse.id),
     );
   }, [allEnrollments, selectedCourse, students]);
+
+  const instructorSubmissionRows = useMemo(() => {
+    if (!selectedAssignmentItem) return [];
+    return enrolledStudentsForSelectedCourse
+      .map((student) => {
+        const submission = selectedAssignmentSubmissions.find((item) => {
+          const email = String(item.student?.email || item.studentEmail || '').toLowerCase();
+          return email === String(student.email || '').toLowerCase();
+        });
+        const status = getStudentSubmissionStatus(submission, selectedAssignmentItem);
+        return { student, submission, status };
+      })
+      .filter((row) => {
+        if (submissionFilter === 'all') return true;
+        if (submissionFilter === 'submitted') return row.status === 'submitted';
+        if (submissionFilter === 'late') return row.status === 'late';
+        if (submissionFilter === 'graded') return row.status === 'graded';
+        if (submissionFilter === 'pending') return row.status === 'pending';
+        return true;
+      });
+  }, [enrolledStudentsForSelectedCourse, selectedAssignmentItem, selectedAssignmentSubmissions, submissionFilter]);
 
   const activeContentFile = useMemo(() => {
     if (!selectedContentItem?.files?.length) return null;
@@ -575,10 +716,81 @@ function CoursesPage() {
   }, [selectedContentFileId, selectedContentItem]);
 
   useEffect(() => {
+    if (requestedCourseId) {
+      setSelectedCourseId(requestedCourseId);
+    }
+  }, [requestedCourseId]);
+
+  useEffect(() => {
     if (!selectedCourseId && courses.length > 0) {
       setSelectedCourseId(requestedCourseId || courses[0].id);
     }
   }, [courses, requestedCourseId, selectedCourseId]);
+
+  useEffect(() => {
+    if (!selectedCourse) return;
+
+    const matchedModule = selectedCourse.modules.find((module) =>
+      (module.items || []).some((item) => {
+        if (requestedAssignmentId) return String(item.id) === String(requestedAssignmentId) && item.type === 'assignment';
+        if (requestedContentId) return String(item.id) === String(requestedContentId) && item.type === 'content';
+        if (requestedQuizId) return String(item.id) === String(requestedQuizId) && item.type === 'quiz';
+        return false;
+      }),
+    );
+    const matchedItem = matchedModule?.items.find((item) =>
+      [requestedAssignmentId, requestedContentId, requestedQuizId].some((id) => id && String(item.id) === String(id)),
+    );
+
+    if (matchedModule && matchedItem) {
+      const deepLinkKey = `${selectedCourse.id}:${matchedItem.type}:${matchedItem.id}:${location.search}`;
+      if (handledDeepLinkRef.current === deepLinkKey) return;
+      handledDeepLinkRef.current = deepLinkKey;
+
+      if (matchedItem.type === 'assignment') handleAssignmentClick(matchedModule.id, matchedItem);
+      if (matchedItem.type === 'content') handleContentClick(matchedModule.id, matchedItem);
+      if (matchedItem.type === 'quiz') handleQuizClick(matchedModule.id, matchedItem);
+
+      setDeepLinkTarget({ type: matchedItem.type, id: matchedItem.id });
+    }
+  }, [location.search, requestedAssignmentId, requestedContentId, requestedQuizId, selectedCourse]);
+
+  useEffect(() => {
+    if (!deepLinkTarget) return;
+
+    const targetKey = `${deepLinkTarget.type}-${deepLinkTarget.id}`;
+    const itemId = `course-item-${targetKey}`;
+    const detailId = `course-detail-${targetKey}`;
+    let cleanupTimers = [];
+
+    const scrollWhenReady = () => {
+      const itemElement = document.getElementById(itemId);
+      const detailElement = document.getElementById(detailId);
+
+      if (!detailElement) {
+        cleanupTimers.push(window.setTimeout(scrollWhenReady, 80));
+        return;
+      }
+
+      setHighlightedItemKey(targetKey);
+      itemElement?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+
+      cleanupTimers.push(
+        window.setTimeout(() => {
+          detailElement.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+        }, 320),
+      );
+      cleanupTimers.push(window.setTimeout(() => setHighlightedItemKey(''), 2400));
+      setDeepLinkTarget(null);
+    };
+
+    cleanupTimers.push(window.setTimeout(scrollWhenReady, 120));
+
+    return () => {
+      cleanupTimers.forEach((timerId) => window.clearTimeout(timerId));
+      cleanupTimers = [];
+    };
+  }, [deepLinkTarget, selectedAssignmentItem, selectedContentItem, selectedQuizItem]);
 
   useEffect(() => {
     if (!selectedCourse?.modules?.length) {
@@ -834,6 +1046,10 @@ function CoursesPage() {
       instructions: '',
       openedAt: '',
       dueAt: '',
+      allowedFileTypes: ASSIGNMENT_FILE_TYPES,
+      maxFileSizeMb: DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB,
+      allowResubmission: true,
+      allowLateSubmission: true,
       questionsCount: '5',
       quizQuestions: [],
       quizInstructions: '',
@@ -857,6 +1073,10 @@ function CoursesPage() {
       instructions: item.instructions || '',
       openedAt: item.openedAt || '',
       dueAt: item.dueAt || '',
+      allowedFileTypes: getAssignmentAllowedTypes(item),
+      maxFileSizeMb: getAssignmentMaxFileSizeMb(item),
+      allowResubmission: item.allowResubmission !== false,
+      allowLateSubmission: item.allowLateSubmission !== false,
       questionsCount: String(item.questionsCount || '5'),
       quizQuestions:
         Array.isArray(item.questions) && item.questions.length ? item.questions : [],
@@ -876,8 +1096,17 @@ function CoursesPage() {
   }
 
   function handleModuleItemFormChange(event) {
-    const { name, value } = event.target;
-    setModuleItemForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = event.target;
+    setModuleItemForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  }
+
+  function toggleModuleAssignmentFileType(fileType) {
+    setModuleItemForm((prev) => {
+      const current = new Set(prev.allowedFileTypes || ASSIGNMENT_FILE_TYPES);
+      if (current.has(fileType)) current.delete(fileType);
+      else current.add(fileType);
+      return { ...prev, allowedFileTypes: current.size ? [...current] : [fileType] };
+    });
   }
 
   async function handleModuleItemFileChange(event) {
@@ -927,15 +1156,34 @@ function CoursesPage() {
 
   async function uploadStudentAssignmentFiles(files) {
     setUploadError('');
+    const validationError = validateAssignmentFiles(files, selectedAssignmentItem);
+    if (validationError) {
+      setUploadError(validationError);
+      return;
+    }
     setStudentUploadProgress(1);
     try {
       const uploadedFiles = await uploadFiles(files, setStudentUploadProgress);
-      setStudentAssignmentUploadFiles((prev) => [...prev, ...uploadedFiles]);
+      setStudentAssignmentUploadFiles((prev) => {
+        const nextFiles = [...prev];
+        uploadedFiles.forEach((file) => {
+          const fileKey = getUploadFileKey(file);
+          if (!nextFiles.some((existingFile) => getUploadFileKey(existingFile) === fileKey)) {
+            nextFiles.push(file);
+          }
+        });
+        return nextFiles;
+      });
     } catch (error) {
       setUploadError(error.message || 'Could not upload files.');
     } finally {
       setStudentUploadProgress(0);
     }
+  }
+
+  function removeStudentAssignmentUploadFile(fileToRemove) {
+    const removeKey = getUploadFileKey(fileToRemove);
+    setStudentAssignmentUploadFiles((prev) => prev.filter((file) => getUploadFileKey(file) !== removeKey));
   }
 
   function handleUploadDragOver(event, zone) {
@@ -973,24 +1221,44 @@ function CoursesPage() {
     );
   }
 
-  function renderUploadedFiles(files) {
+  function renderUploadedFiles(files, options = {}) {
     if (!files.length) return null;
     return (
       <div className="uploadFileGrid">
-        {files.map((file) => (
-          <button
-            key={file.id || file.url || file.name}
-            type="button"
-            className="uploadFileCard"
-            onClick={() => openStoredFile(file)}
-          >
-            <span className="uploadFileIcon">{getFileIconLabel(file)}</span>
-            <span>
-              <strong>{file.name}</strong>
-              <small>{formatFileSize(file.size) || file.mimeType || 'Uploaded file'}</small>
-            </span>
-          </button>
-        ))}
+        {files.map((file) => {
+          const fileType = getSubmissionFileType(file);
+          const previewUrl = file.previewUrl || file.thumbnailUrl || getFileUrl(file);
+          return (
+            <div
+              key={file.id || file.url || file.name}
+              className="uploadFileCard assignmentUploadPreviewCard"
+            >
+              <button type="button" className="assignmentUploadOpenButton" onClick={() => openStoredFile(file)}>
+                {fileType === 'image' ? (
+                  <img src={previewUrl} alt="" className="assignmentMiniPreview" />
+                ) : fileType === 'video' ? (
+                  <span className="assignmentMiniPreview assignmentVideoPreview">Video</span>
+                ) : (
+                  <span className="uploadFileIcon">{getFileIconLabel(file)}</span>
+                )}
+                <span>
+                  <strong>{file.name || file.originalFilename}</strong>
+                  <small>{formatFileSize(file.size) || file.mimeType || 'Uploaded file'}</small>
+                </span>
+              </button>
+              {options.onRemove && (
+                <button
+                  type="button"
+                  className="assignmentUploadRemoveButton"
+                  onClick={() => options.onRemove(file)}
+                  aria-label={`Remove ${file.name || file.originalFilename}`}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -1074,8 +1342,12 @@ function CoursesPage() {
                 instructions: moduleItemForm.instructions.trim(),
                 gradingStatus: 'Not graded',
                 requiresStudentUpload: true,
-                submissionOpen: !shouldAutoCloseSubmission(moduleItemForm.dueAt),
-                fileSubmissionEnabled: false,
+                submissionOpen: true,
+                fileSubmissionEnabled: true,
+                allowedFileTypes: moduleItemForm.allowedFileTypes || ASSIGNMENT_FILE_TYPES,
+                maxFileSizeMb: Number(moduleItemForm.maxFileSizeMb) || DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB,
+                allowResubmission: moduleItemForm.allowResubmission !== false,
+                allowLateSubmission: moduleItemForm.allowLateSubmission !== false,
                 attachments: [],
                 submissions: getDefaultAssignmentSubmissions(),
                 openedAt: moduleItemForm.openedAt,
@@ -1216,6 +1488,10 @@ function CoursesPage() {
       fileSubmissionEnabled: item.fileSubmissionEnabled ?? false,
       openedAt: item.openedAt || '',
       dueAt: item.dueAt || '',
+      allowedFileTypes: getAssignmentAllowedTypes(item),
+      maxFileSizeMb: getAssignmentMaxFileSizeMb(item),
+      allowResubmission: item.allowResubmission !== false,
+      allowLateSubmission: item.allowLateSubmission !== false,
       attachments: item.attachments || [],
       submissions: item.submissions || getDefaultAssignmentSubmissions(),
     });
@@ -1598,6 +1874,15 @@ function CoursesPage() {
     }));
   }
 
+  function toggleAssignmentFileType(fileType) {
+    setAssignmentDetailForm((prev) => {
+      const current = new Set(prev.allowedFileTypes || ASSIGNMENT_FILE_TYPES);
+      if (current.has(fileType)) current.delete(fileType);
+      else current.add(fileType);
+      return { ...prev, allowedFileTypes: current.size ? [...current] : [fileType] };
+    });
+  }
+
   function removeAssignmentAttachment(fileId) {
     requestDeleteAction({
       title: 'Remove Attachment?',
@@ -1612,10 +1897,10 @@ function CoursesPage() {
     });
   }
 
-  function updateAssignmentSubmissionGrade(submissionId, gradeValue) {
+  function updateAssignmentSubmissionGrade(submissionId, gradeValue, feedbackValue = '') {
     if (!selectedCourse || !selectedAssignment) return;
 
-    gradeAssignmentSubmission(submissionId, { grade: gradeValue })
+    gradeAssignmentSubmission(submissionId, { grade: gradeValue, feedback: feedbackValue })
       .then((updatedSubmission) => {
         const key = activityKey(selectedCourse.id, selectedAssignment.itemId);
         setAssignmentSubmissionsByKey((prev) => ({
@@ -1629,6 +1914,33 @@ function CoursesPage() {
       .catch((error) => setCourseSyncMessage(`Could not grade assignment: ${error.message}`));
   }
 
+  function updateGradingDraft(submissionId, field, value, baseDraft = {}) {
+    setGradingDrafts((prev) => ({
+      ...prev,
+      [submissionId]: {
+        grade: prev[submissionId]?.grade ?? baseDraft.grade ?? '',
+        feedback: prev[submissionId]?.feedback ?? baseDraft.feedback ?? '',
+        [field]: value,
+      },
+    }));
+  }
+
+  function deleteStudentSubmission() {
+    if (!selectedCourse || !selectedAssignment || !myAssignmentSubmission) return;
+
+    deleteAssignmentSubmission(myAssignmentSubmission._id || myAssignmentSubmission.id)
+      .then(() => {
+        const key = activityKey(selectedCourse.id, selectedAssignment.itemId);
+        const deletedId = myAssignmentSubmission._id || myAssignmentSubmission.id;
+        setAssignmentSubmissionsByKey((prev) => ({
+          ...prev,
+          [key]: (prev[key] || []).filter((submission) => (submission._id || submission.id) !== deletedId),
+        }));
+        setCourseSyncMessage('');
+      })
+      .catch((error) => setCourseSyncMessage(`Could not remove submission: ${error.message}`));
+  }
+
   async function handleStudentAssignmentUploadChange(event) {
     const files = event.target.files;
     if (!files?.length) return;
@@ -1637,10 +1949,13 @@ function CoursesPage() {
 
   function submitStudentAssignment() {
     if (!selectedCourse || !selectedAssignment || !currentUser) return;
+    if (myAssignmentSubmission && selectedAssignmentItem?.allowResubmission === false) {
+      setCourseSyncMessage('This assignment does not allow resubmission.');
+      return;
+    }
 
     submitAssignmentRequest(selectedCourse.id, selectedAssignment.itemId, {
       files: studentAssignmentUploadFiles,
-      dueAt: selectedAssignmentItem?.dueAt,
     })
       .then((submission) => {
         const key = activityKey(selectedCourse.id, selectedAssignment.itemId);
@@ -1682,6 +1997,10 @@ function CoursesPage() {
                               requiresStudentUpload: assignmentDetailForm.requiresStudentUpload,
                               submissionOpen: nextSubmissionOpen,
                               fileSubmissionEnabled: assignmentDetailForm.fileSubmissionEnabled,
+                              allowedFileTypes: assignmentDetailForm.allowedFileTypes,
+                              maxFileSizeMb: Number(assignmentDetailForm.maxFileSizeMb) || DEFAULT_ASSIGNMENT_MAX_FILE_SIZE_MB,
+                              allowResubmission: assignmentDetailForm.allowResubmission,
+                              allowLateSubmission: assignmentDetailForm.allowLateSubmission,
                               openedAt: assignmentDetailForm.openedAt,
                               dueAt: assignmentDetailForm.dueAt,
                               attachments: assignmentDetailForm.attachments,
@@ -1745,7 +2064,10 @@ function CoursesPage() {
                 </button>
               </div>
 
-              <section className="assignmentWorkspace assignmentWorkspaceStandalone">
+              <section
+                id={`course-detail-assignment-${selectedAssignmentItem.id}`}
+                className="assignmentWorkspace assignmentWorkspaceStandalone notificationScrollTarget"
+              >
                 <div className="assignmentWorkspaceHeader">
                   <div>
                     <p className="assignmentWorkspaceEyebrow">Assignment Workspace</p>
@@ -1842,6 +2164,53 @@ function CoursesPage() {
                         <span>Enable file submission</span>
                       </label>
 
+                      <label htmlFor="assignment-max-file-size">Max file size per file (MB)</label>
+                      <input
+                        id="assignment-max-file-size"
+                        type="number"
+                        min="1"
+                        max="250"
+                        name="maxFileSizeMb"
+                        value={assignmentDetailForm.maxFileSizeMb}
+                        onChange={handleAssignmentFormChange}
+                      />
+
+                      <div className="assignmentPolicyGroup">
+                        <span className="assignmentPolicyLabel">Allowed file types</span>
+                        <div className="assignmentFileTypeGrid">
+                          {ASSIGNMENT_FILE_TYPES.map((fileType) => (
+                            <label key={fileType} className="assignmentTypeChip">
+                              <input
+                                type="checkbox"
+                                checked={(assignmentDetailForm.allowedFileTypes || []).includes(fileType)}
+                                onChange={() => toggleAssignmentFileType(fileType)}
+                              />
+                              <span>{fileType.toUpperCase()}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <label className="assignmentCheckboxRow">
+                        <input
+                          type="checkbox"
+                          name="allowResubmission"
+                          checked={assignmentDetailForm.allowResubmission}
+                          onChange={handleAssignmentFormChange}
+                        />
+                        <span>Allow students to replace submissions before the deadline</span>
+                      </label>
+
+                      <label className="assignmentCheckboxRow">
+                        <input
+                          type="checkbox"
+                          name="allowLateSubmission"
+                          checked={assignmentDetailForm.allowLateSubmission}
+                          onChange={handleAssignmentFormChange}
+                        />
+                        <span>Allow late submissions and mark them as late</span>
+                      </label>
+
                       <label htmlFor="assignment-files">Upload supporting content</label>
                       <div
                         className={`uploadDropZone ${activeDropZone === 'assignment' ? 'uploadDropZoneActive' : ''}`}
@@ -1934,7 +2303,11 @@ function CoursesPage() {
                       </article>
                       <article>
                         <h4>File Submission</h4>
-                        <p>{selectedAssignmentItem.fileSubmissionEnabled ? 'Enabled' : 'Disabled'}</p>
+                        <p>
+                          {selectedAssignmentItem.fileSubmissionEnabled
+                            ? `${getAssignmentAllowedTypes(selectedAssignmentItem).map((type) => type.toUpperCase()).join(', ')} up to ${getAssignmentMaxFileSizeMb(selectedAssignmentItem)} MB`
+                            : 'Disabled'}
+                        </p>
                       </article>
                     </div>
 
@@ -1944,7 +2317,30 @@ function CoursesPage() {
 
                       {!canManageContent && selectedAssignmentItem.requiresStudentUpload && (
                         <div className="assignmentEditorCard">
-                          <h4>Submit Assignment</h4>
+                          <div className="assignmentStudentSubmissionHeader">
+                            <div>
+                              <h4>Submit Assignment</h4>
+                              <p>
+                                Allowed: {getAssignmentAllowedTypes(selectedAssignmentItem).map((type) => type.toUpperCase()).join(', ')}
+                                {' '}| Max {getAssignmentMaxFileSizeMb(selectedAssignmentItem)} MB per file
+                              </p>
+                            </div>
+                            <span className={`assignmentStatusChip assignmentStatus-${getStudentSubmissionStatus(myAssignmentSubmission, selectedAssignmentItem)}`}>
+                              {getSubmissionStatusLabel(getStudentSubmissionStatus(myAssignmentSubmission, selectedAssignmentItem))}
+                            </span>
+                          </div>
+                          {myAssignmentSubmission?.files?.length > 0 && (
+                            <div className="assignmentCurrentSubmission">
+                              <strong>Current submission</strong>
+                              {renderUploadedFiles(myAssignmentSubmission.files)}
+                              {myAssignmentSubmission.feedback && <p className="assignmentFeedbackText">Feedback: {myAssignmentSubmission.feedback}</p>}
+                              {!isAssignmentClosed(selectedAssignmentItem) && selectedAssignmentItem.allowResubmission !== false && (
+                                <button type="button" className="profileDangerButton" onClick={deleteStudentSubmission}>
+                                  Remove Submission
+                                </button>
+                              )}
+                            </div>
+                          )}
                           <div className="authForm">
                             <label htmlFor="student-assignment-files">Upload your files</label>
                             <div
@@ -1953,8 +2349,8 @@ function CoursesPage() {
                               onDragLeave={handleUploadDragLeave}
                               onDrop={(event) => {
                                 if (
-                                  !selectedAssignmentItem.submissionOpen ||
-                                  shouldAutoCloseSubmission(selectedAssignmentItem.dueAt)
+                                  isAssignmentClosed(selectedAssignmentItem) ||
+                                  (myAssignmentSubmission && selectedAssignmentItem.allowResubmission === false)
                                 ) {
                                   return;
                                 }
@@ -1968,32 +2364,41 @@ function CoursesPage() {
                                 id="student-assignment-files"
                                 type="file"
                                 multiple
+                                accept={ASSIGNMENT_FILE_ACCEPT}
                                 onChange={handleStudentAssignmentUploadChange}
                                 disabled={
-                                  !selectedAssignmentItem.submissionOpen ||
-                                  shouldAutoCloseSubmission(selectedAssignmentItem.dueAt)
+                                  isAssignmentClosed(selectedAssignmentItem) ||
+                                  (myAssignmentSubmission && selectedAssignmentItem.allowResubmission === false)
                                 }
                               />
                             </div>
                             {renderUploadProgress(studentUploadProgress)}
                           </div>
                           {studentAssignmentUploadFiles.length > 0 && (
-                            renderUploadedFiles(studentAssignmentUploadFiles)
+                            renderUploadedFiles(studentAssignmentUploadFiles, { onRemove: removeStudentAssignmentUploadFile })
                           )}
-                          <div className="profileModalActions">
-                            <button
-                              type="button"
-                              className="profilePrimaryButton"
-                              onClick={submitStudentAssignment}
-                              disabled={
-                                !studentAssignmentUploadFiles.length ||
-                                !selectedAssignmentItem.submissionOpen ||
-                                shouldAutoCloseSubmission(selectedAssignmentItem.dueAt)
-                              }
-                            >
-                              Submit
-                            </button>
-                          </div>
+                          {studentAssignmentUploadFiles.length > 0 && (
+                            <div className="profileModalActions">
+                              <button
+                                type="button"
+                                className="profilePrimaryButton"
+                                onClick={submitStudentAssignment}
+                                disabled={
+                                  isAssignmentClosed(selectedAssignmentItem) ||
+                                  (myAssignmentSubmission && selectedAssignmentItem.allowResubmission === false)
+                                }
+                              >
+                                {myAssignmentSubmission ? 'Submit Replacement' : 'Submit Assignment'}
+                              </button>
+                              <button
+                                type="button"
+                                className="heroButton heroButtonSecondary"
+                                onClick={() => setStudentAssignmentUploadFiles([])}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -2016,60 +2421,121 @@ function CoursesPage() {
                       )}
                     </section>
 
-                    <section className="assignmentSubmissionTable">
-                      <h4>Assignment submission status</h4>
-                      <div className="assignmentTableHeader">
-                        <span>Student Name</span>
-                        <span>Submission Status</span>
-                        <span>Assignment Submit Date</span>
-                        <span>Submission Type</span>
-                          <span>View Submissions</span>
-                          <span>Grade Submission</span>
-                      </div>
-                        {enrolledStudentsForSelectedCourse.map((student) => {
-                          const submission = selectedAssignmentSubmissions.find((item) => {
-                            const email = item.student?.email || item.studentEmail;
-                            return email === student.email.toLowerCase();
-                          });
-                          return (
-                          <div key={student.email} className="assignmentTableRow">
-                            <span>{student.name}</span>
-                            <span>{submission ? 'Submitted' : 'Not yet submitted'}</span>
-                            <span>{submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'N/A'}</span>
-                            <span>{submission?.status === 'late' ? 'Late submit' : submission ? 'On time' : 'N/A'}</span>
-                            <span>
-                              {submission?.files?.length ? (
-                                submission.files.map((file) => (
-                                  <button
-                                    key={file.id}
-                                    type="button"
-                                    className="courseInlineFileButton"
-                                    onClick={() => openStoredFile(file)}
-                                  >
-                                    {file.name}
-                                  </button>
-                                ))
-                              ) : (
-                                'No upload'
-                              )}
-                            </span>
-                            <span>
-                              <input
-                                className="assignmentGradeInput"
-                                type="text"
-                                value={submission?.grade || ''}
-                                onChange={(event) =>
-                                  submission &&
-                                  updateAssignmentSubmissionGrade(submission._id, event.target.value)
-                                }
-                                placeholder="e.g. 8/10"
-                                readOnly={!canManageContent}
-                              />
-                            </span>
+                    {canManageContent && (
+                      <section className="assignmentSubmissionTable">
+                        <div className="assignmentTrackingHeader">
+                          <div>
+                            <h4>Assignment submission tracking</h4>
+                            <p>{instructorSubmissionRows.length} student record(s) shown</p>
                           </div>
-                          );
-                        })}
-                    </section>
+                          <div className="assignmentSubmissionFilters">
+                            {['all', 'submitted', 'pending', 'late', 'graded'].map((filter) => (
+                              <button
+                                key={filter}
+                                type="button"
+                                className={submissionFilter === filter ? 'assignmentFilterActive' : ''}
+                                onClick={() => setSubmissionFilter(filter)}
+                              >
+                                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="assignmentTableHeader">
+                          <span>Student Name</span>
+                          <span>Assignment</span>
+                          <span>Status</span>
+                          <span>Submitted</span>
+                          <span>Files</span>
+                          <span>Review</span>
+                        </div>
+                        {instructorSubmissionRows.length ? (
+                          instructorSubmissionRows.map(({ student, submission, status }) => {
+                            const draft = gradingDrafts[submission?._id] || {
+                              grade: submission?.grade || '',
+                              feedback: submission?.feedback || '',
+                            };
+                            return (
+                              <div key={student.email} className="assignmentTableRow">
+                                <span>
+                                  <strong>{student.name}</strong>
+                                  <small>{student.email}</small>
+                                </span>
+                                <span>{selectedAssignmentItem.title}</span>
+                                <span>
+                                  <span className={`assignmentStatusChip assignmentStatus-${status}`}>
+                                    {getSubmissionStatusLabel(status)}
+                                  </span>
+                                </span>
+                                <span>{submission?.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'N/A'}</span>
+                                <span>
+                                  {submission?.files?.length ? (
+                                    submission.files.map((file) => (
+                                      <button
+                                        key={file.id || file.url}
+                                        type="button"
+                                        className="courseInlineFileButton assignmentFileButton"
+                                        onClick={() => openStoredFile(file)}
+                                      >
+                                        {getFileIconLabel(file)} {file.name || file.originalFilename}
+                                      </button>
+                                    ))
+                                  ) : (
+                                    'No upload'
+                                  )}
+                                </span>
+                                <span className="assignmentReviewCell">
+                                  {submission ? (
+                                    <>
+                                      <button type="button" className="heroButton heroButtonSecondary" onClick={() => setPreviewSubmission(submission)}>
+                                        View Submission
+                                      </button>
+                                      <input
+                                        className="assignmentGradeInput"
+                                        type="text"
+                                        value={draft.grade}
+                                        onChange={(event) =>
+                                          updateGradingDraft(submission._id, 'grade', event.target.value, {
+                                            grade: submission.grade,
+                                            feedback: submission.feedback,
+                                          })
+                                        }
+                                        placeholder="e.g. 8/10"
+                                      />
+                                      <textarea
+                                        className="assignmentFeedbackInput"
+                                        value={draft.feedback}
+                                        onChange={(event) =>
+                                          updateGradingDraft(submission._id, 'feedback', event.target.value, {
+                                            grade: submission.grade,
+                                            feedback: submission.feedback,
+                                          })
+                                        }
+                                        placeholder="Feedback for the student"
+                                      />
+                                      <button
+                                        type="button"
+                                        className="profilePrimaryButton"
+                                        onClick={() => updateAssignmentSubmissionGrade(submission._id, draft.grade, draft.feedback)}
+                                      >
+                                        Mark Graded
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="assignmentMutedText">Awaiting submission</span>
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="notificationsEmptyState">
+                            <h3>No submissions yet</h3>
+                            <p>Student submissions for this assignment will appear here.</p>
+                          </div>
+                        )}
+                      </section>
+                    )}
                   </>
                 )}
               </section>
@@ -2090,7 +2556,10 @@ function CoursesPage() {
                 </button>
               </div>
 
-              <section className="contentViewerWorkspace">
+              <section
+                id={`course-detail-content-${selectedContentItem.id}`}
+                className="contentViewerWorkspace notificationScrollTarget"
+              >
                 <div className="assignmentSummaryGrid contentViewerSummaryGrid">
                   <article>
                     <h4>Content Type</h4>
@@ -2176,7 +2645,10 @@ function CoursesPage() {
                 </button>
               </div>
 
-              <section className="assignmentWorkspace assignmentWorkspaceStandalone">
+              <section
+                id={`course-detail-quiz-${selectedQuizItem.id}`}
+                className="assignmentWorkspace assignmentWorkspaceStandalone notificationScrollTarget"
+              >
                 {canManageContent ? (
                   <>
                     <section className="assignmentSummaryGrid">
@@ -2699,8 +3171,11 @@ function CoursesPage() {
                           ) : (
                             module.items.map((item) => (
                               <div
+                                id={`course-item-${item.type}-${item.id}`}
                                 key={item.id}
-                                className="courseItemCard"
+                                className={`courseItemCard ${
+                                  highlightedItemKey === `${item.type}-${item.id}` ? 'courseItemCardDeepLinked' : ''
+                                }`}
                                 role={item.type === 'quiz' ? 'button' : undefined}
                                 tabIndex={item.type === 'quiz' ? 0 : undefined}
                                 onClick={() => item.type === 'quiz' && handleQuizClick(module.id, item)}
@@ -3012,6 +3487,53 @@ function CoursesPage() {
                     value={moduleItemForm.dueAt}
                     onChange={handleModuleItemFormChange}
                   />
+
+                  <label htmlFor="module-assignment-max-file-size">Max file size per file (MB)</label>
+                  <input
+                    id="module-assignment-max-file-size"
+                    type="number"
+                    min="1"
+                    max="250"
+                    name="maxFileSizeMb"
+                    value={moduleItemForm.maxFileSizeMb}
+                    onChange={handleModuleItemFormChange}
+                  />
+
+                  <div className="assignmentPolicyGroup">
+                    <span className="assignmentPolicyLabel">Allowed file types</span>
+                    <div className="assignmentFileTypeGrid">
+                      {ASSIGNMENT_FILE_TYPES.map((fileType) => (
+                        <label key={fileType} className="assignmentTypeChip">
+                          <input
+                            type="checkbox"
+                            checked={(moduleItemForm.allowedFileTypes || []).includes(fileType)}
+                            onChange={() => toggleModuleAssignmentFileType(fileType)}
+                          />
+                          <span>{fileType.toUpperCase()}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <label className="assignmentCheckboxRow">
+                    <input
+                      type="checkbox"
+                      name="allowResubmission"
+                      checked={moduleItemForm.allowResubmission}
+                      onChange={handleModuleItemFormChange}
+                    />
+                    <span>Allow replacement before the deadline</span>
+                  </label>
+
+                  <label className="assignmentCheckboxRow">
+                    <input
+                      type="checkbox"
+                      name="allowLateSubmission"
+                      checked={moduleItemForm.allowLateSubmission}
+                      onChange={handleModuleItemFormChange}
+                    />
+                    <span>Allow late submissions</span>
+                  </label>
                 </>
               )}
 
@@ -3126,6 +3648,48 @@ function CoursesPage() {
                 Download
               </a>
               <button type="button" className="heroButton heroButtonSecondary" onClick={closePreviewFile}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewSubmission && (
+        <div className="lightboxOverlay" role="dialog" aria-modal="true" aria-label="Submission preview">
+          <div className="lightboxCard filePreviewCard">
+            <div className="filePreviewHeader">
+              <div>
+                <h3>{previewSubmission.student?.name || 'Student submission'}</h3>
+                <p className="authSubtext">
+                  Submitted {previewSubmission.submittedAt ? new Date(previewSubmission.submittedAt).toLocaleString() : 'recently'}
+                </p>
+              </div>
+            </div>
+            <div className="assignmentSubmissionPreviewList">
+              {previewSubmission.files?.length ? (
+                previewSubmission.files.map((file) => (
+                  <article key={file.id || file.url} className="assignmentSubmissionPreviewCard">
+                    <span className="uploadFileIcon">{getFileIconLabel(file)}</span>
+                    <div>
+                      <strong>{file.name || file.originalFilename}</strong>
+                      <small>{getSubmissionFileType(file).toUpperCase()} · {formatFileSize(file.size) || 'Cloud file'}</small>
+                    </div>
+                    <button type="button" className="heroButton heroButtonSecondary" onClick={() => setPreviewFile(file)}>
+                      Preview
+                    </button>
+                    <a href={getFileUrl(file)} className="profilePrimaryButton" download={file.name || file.originalFilename}>
+                      Download
+                    </a>
+                  </article>
+                ))
+              ) : (
+                <div className="contentViewerFallback">No uploaded files are attached to this submission.</div>
+              )}
+              {previewSubmission.feedback && <p className="assignmentFeedbackText">Feedback: {previewSubmission.feedback}</p>}
+            </div>
+            <div className="profileModalActions">
+              <button type="button" className="heroButton heroButtonSecondary" onClick={() => setPreviewSubmission(null)}>
                 Close
               </button>
             </div>

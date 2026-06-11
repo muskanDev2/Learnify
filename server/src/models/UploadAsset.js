@@ -52,12 +52,15 @@ uploadAssetSchema.methods.toClient = function toClient() {
   return {
     id: String(this._id),
     name: this.originalName,
+    originalFilename: this.originalName,
     mimeType: this.mimeType,
     size: this.size,
     url: this.url,
+    secureUrl: this.url,
     provider: this.provider,
     resourceType: this.resourceType,
     publicId: this.publicId,
+    uploadedAt: this.createdAt,
   };
 };
 

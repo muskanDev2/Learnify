@@ -54,6 +54,9 @@ function uploadFileToCloudinary(file, signatureData, onProgress) {
   formData.append('timestamp', signatureData.timestamp);
   formData.append('folder', signatureData.folder);
   formData.append('signature', signatureData.signature);
+  if (signatureData.uploadPreset) {
+    formData.append('upload_preset', signatureData.uploadPreset);
+  }
 
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();

@@ -26,6 +26,7 @@ function getEnv() {
       apiKey: process.env.CLOUDINARY_API_KEY || '',
       apiSecret: process.env.CLOUDINARY_API_SECRET || '',
       folder: process.env.CLOUDINARY_UPLOAD_FOLDER || 'learnify/lms',
+      uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || '',
     },
   };
 }

@@ -11,6 +11,13 @@ export function updateMe(profileUpdates) {
   }).then((result) => result.data);
 }
 
+export function changePassword(passwordPayload) {
+  return apiFetch('/api/users/me/password', {
+    method: 'PUT',
+    body: JSON.stringify(passwordPayload),
+  });
+}
+
 export function deleteMe(options = {}) {
   return apiFetch('/api/users/me', {
     method: 'DELETE',
