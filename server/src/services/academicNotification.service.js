@@ -47,9 +47,7 @@ async function hasCompletedItem(user, course, item) {
   });
 }
 
-async function generateAcademicRemindersForUser(user) {
-  if (String(user.role || '').toLowerCase() !== 'student') return;
-
+async function generateStudentReminders(user) {
   const enrollments = await Enrollment.find({
     $or: [{ student: user._id }, { studentEmail: String(user.email || '').toLowerCase() }],
     status: { $ne: 'dropped' },
@@ -103,6 +101,105 @@ async function generateAcademicRemindersForUser(user) {
       });
     }
   }
+}
+
+async function generateInstructorAlerts(user) {
+  const courses = await Course.find({ ownerEmail: String(user.email || '').toLowerCase() });
+  const now = Date.now();
+
+  for (const course of courses) {
+    const activeEnrollmentCount = await Enrollment.countDocuments({
+      courseId: course.id,
+      status: { $ne: 'dropped' },
+    });
+    const items = flattenCourseItems(course).filter((item) => ['assignment', 'quiz'].includes(item.type));
+
+    for (const item of items) {
+      const dueDate = getDueDate(item);
+      const isPastDue = dueDate && dueDate.getTime() < now;
+      const itemLabel = item.title || (item.type === 'quiz' ? 'Quiz' : 'Assignment');
+
+      if (isPastDue) {
+        await createNotification(user._id, {
+          title: `${item.type === 'quiz' ? 'Quiz' : 'Assignment'} deadline reached`,
+          message: `${itemLabel} in ${course.title} has reached its deadline.`,
+          notificationType: item.type === 'quiz' ? 'instructor_quiz_deadline_reached' : 'instructor_assignment_deadline_reached',
+          relatedEntityId: item.id,
+          relatedEntityType: item.type,
+          courseId: course.id,
+          dedupeKey: `instructor_deadline_reached:${course.id}:${item.type}:${item.id}`,
+          actionUrl: buildActionUrl(course.id, item),
+        });
+      }
+
+      if (item.type === 'assignment') {
+        const pendingSubmissionCount = await AssignmentSubmission.countDocuments({
+          course: course._id,
+          assignmentItemId: String(item.id),
+          status: { $in: ['submitted', 'late', 'resubmitted'] },
+        });
+
+        if (pendingSubmissionCount > 0) {
+          await createNotification(user._id, {
+            title: 'Submissions pending review',
+            message: `${pendingSubmissionCount} submission${pendingSubmissionCount === 1 ? '' : 's'} for ${itemLabel} ${pendingSubmissionCount === 1 ? 'is' : 'are'} waiting for grading.`,
+            notificationType: 'submissions_pending_review',
+            relatedEntityId: item.id,
+            relatedEntityType: 'assignment',
+            courseId: course.id,
+            dedupeKey: `submissions_pending_review:${course.id}:${item.id}:${pendingSubmissionCount}`,
+            actionUrl: buildActionUrl(course.id, item),
+          });
+        }
+
+        if (isPastDue && activeEnrollmentCount > 0) {
+          const submittedStudentCount = await AssignmentSubmission.distinct('student', {
+            course: course._id,
+            assignmentItemId: String(item.id),
+          });
+          const missingCount = Math.max(0, activeEnrollmentCount - submittedStudentCount.length);
+
+          if (missingCount > 0) {
+            await createNotification(user._id, {
+              title: 'Students missing assignment submission',
+              message: `${missingCount} student${missingCount === 1 ? '' : 's'} did not submit ${itemLabel} before the deadline.`,
+              notificationType: 'instructor_missing_submissions',
+              relatedEntityId: item.id,
+              relatedEntityType: 'assignment',
+              courseId: course.id,
+              dedupeKey: `instructor_missing_submissions:${course.id}:${item.id}:${missingCount}`,
+              actionUrl: buildActionUrl(course.id, item),
+            });
+          }
+        }
+      }
+    }
+  }
+}
+
+async function generateAdminAlerts(user) {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const [courseCount, activeEnrollmentCount] = await Promise.all([
+    Course.countDocuments(),
+    Enrollment.countDocuments({ status: { $ne: 'dropped' } }),
+  ]);
+
+  await createNotification(user._id, {
+    title: 'Daily platform activity summary',
+    message: `Learnify currently has ${courseCount} course${courseCount === 1 ? '' : 's'} and ${activeEnrollmentCount} active enrollment${activeEnrollmentCount === 1 ? '' : 's'}.`,
+    notificationType: 'admin_platform_summary',
+    relatedEntityType: 'system',
+    dedupeKey: `admin_platform_summary:${todayKey}`,
+    actionUrl: '/dashboard?tab=reports',
+  });
+}
+
+async function generateAcademicRemindersForUser(user) {
+  const role = String(user.role || '').toLowerCase();
+  if (role === 'student') return generateStudentReminders(user);
+  if (role === 'instructor') return generateInstructorAlerts(user);
+  if (role === 'admin') return generateAdminAlerts(user);
+  return null;
 }
 
 module.exports = { generateAcademicRemindersForUser };
