@@ -5,6 +5,7 @@ import { getCurrentUser } from '../utils/authUtils';
 import { fetchCourses } from '../utils/courseApi';
 import { fetchEnrollments } from '../utils/enrollmentApi';
 import { fetchProgress } from '../utils/progressApi';
+import { fetchMyCertificates } from '../utils/certificateApi';
 import { getCourseItemCount, studentCompletionByCourse } from '../utils/dashboardStats';
 
 function getCourseItems(course) {
@@ -28,6 +29,7 @@ export default function StudentProgressPanel() {
   const [courses, setCourses] = useState([]);
   const [enrollments, setEnrollments] = useState({});
   const [progress, setProgress] = useState({});
+  const [certificates, setCertificates] = useState([]);
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -39,10 +41,11 @@ export default function StudentProgressPanel() {
       setErrorMessage('');
 
       try {
-        const [apiCourses, apiEnrollments, apiProgress] = await Promise.all([
+        const [apiCourses, apiEnrollments, apiProgress, apiCertificates] = await Promise.all([
           fetchCourses(),
           fetchEnrollments(),
           fetchProgress(),
+          fetchMyCertificates().catch(() => []),
         ]);
 
         if (!isMounted) return;
@@ -50,6 +53,7 @@ export default function StudentProgressPanel() {
         setCourses(apiCourses);
         setEnrollments(apiEnrollments);
         setProgress(apiProgress);
+        setCertificates(apiCertificates);
         setStatus('ready');
       } catch (error) {
         if (!isMounted) return;
@@ -74,6 +78,13 @@ export default function StudentProgressPanel() {
     () => studentCompletionByCourse(studentEmail, courses, enrollments, progress),
     [courses, enrollments, progress, studentEmail],
   );
+  const certificateByCourseId = useMemo(() => {
+    const map = {};
+    certificates.forEach((certificate) => {
+      if (certificate.certificateApproved) map[certificate.courseId] = certificate;
+    });
+    return map;
+  }, [certificates]);
   const progressByCourseId = progress[studentEmail] || {};
   const totalItems = enrolledCourses.reduce((sum, course) => sum + getCourseItemCount(course), 0);
   const completedItems = completionRows.reduce((sum, row) => sum + row.completed, 0);
@@ -132,6 +143,7 @@ export default function StudentProgressPanel() {
                 const courseProgress = progressByCourseId[course.id] || {};
                 const completedCount = courseItems.filter((item) => courseProgress[item.id]).length;
                 const pct = courseItems.length ? Math.round((completedCount / courseItems.length) * 100) : 0;
+                const certificate = certificateByCourseId[course.id];
 
                 return (
                   <article key={course.id} className="studentProgressCourseCard">
@@ -162,6 +174,24 @@ export default function StudentProgressPanel() {
                         </li>
                       ))}
                     </ul>
+                    {certificate ? (
+                      <div className="studentCertificateRow studentCertificateRowReady">
+                        <span>Certificate available</span>
+                        <a
+                          className="certificateDownloadButton"
+                          href={certificate.certificateUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                        >
+                          Download Certificate
+                        </a>
+                      </div>
+                    ) : pct >= 100 ? (
+                      <div className="studentCertificateRow studentCertificateRowPending">
+                        <span>Course complete — awaiting instructor approval for your certificate.</span>
+                      </div>
+                    ) : null}
                   </article>
                 );
               })

@@ -1504,11 +1504,215 @@ h1, h2, h3 {
   white-space: nowrap;
 }
 
+/* Certificate status chips (shared by instructor table + student panel) */
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusChipCompleted {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.statusChipProgress {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.statusChipApproved {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Instructor inline certificate table */
+.certificateTable {
+  margin-top: 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.certificateTableHead,
+.certificateTableRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(64px, 0.6fr) minmax(96px, 0.8fr) minmax(120px, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.55rem 0.85rem;
+}
+
+.certificateTableHead {
+  background: #eef2ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+}
+
+.certificateTableRow {
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.88rem;
+  color: #1e293b;
+}
+
+.certificateCourseName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.certificateActionCell {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.certificateApprovedGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.certificateApproveButton {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.certificateApproveButton:hover:not(:disabled),
+.certificateApproveButton:focus-visible:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.certificateApproveButton:disabled {
+  background: #cbd5e1;
+  color: #f1f5f9;
+  cursor: not-allowed;
+}
+
+/* Early approval (below threshold) gets an amber accent to signal an override. */
+.certificateApproveButtonOverride {
+  background: #d97706;
+}
+
+.certificateApproveButtonOverride:hover:not(:disabled),
+.certificateApproveButtonOverride:focus-visible:not(:disabled) {
+  background: #b45309;
+}
+
+.certificateOverrideWarning {
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  font-size: 0.88rem;
+}
+
+.certificateLinkButton,
+.certificateDownloadButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #2563eb;
+  color: #1d4ed8;
+  background: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.certificateLinkButton:hover,
+.certificateDownloadButton:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* Student certificate row in progress cards */
+.studentCertificateRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 0.88rem;
+}
+
+.studentCertificateRowReady span {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.studentCertificateRowPending span {
+  color: #b45309;
+}
+
+.studentCertificateRow .certificateDownloadButton {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.studentCertificateRow .certificateDownloadButton:hover {
+  background: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+  .certificateTableHead {
+    display: none;
+  }
+
+  .certificateTableRow {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    padding: 0.75rem 0.85rem;
+  }
+
+  .certificateActionCell {
+    justify-content: flex-start;
+  }
+
+  .certificateApproveButton,
+  .certificateLinkButton {
+    width: 100%;
+  }
+}
+
 .instructorStudentsToolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.7fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(200px, 0.8fr) minmax(150px, 0.5fr);
   gap: 0.85rem;
   margin-top: 1rem;
+}
+
+@media (max-width: 760px) {
+  .instructorStudentsToolbar {
+    grid-template-columns: 1fr;
+  }
 }
 
 .instructorStudentsToolbar label {
