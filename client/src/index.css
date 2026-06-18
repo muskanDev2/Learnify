@@ -596,6 +596,274 @@ h1, h2, h3 {
   color: #16a34a;
 }
 
+/* Help & Support modal */
+.helpSupportCard {
+  width: min(680px, 100%);
+  max-height: min(90vh, 860px);
+  overflow: auto;
+}
+
+.helpSupportHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.helpSupportClose {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.helpSupportClose:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.helpSupportSuccessBanner {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-size: 0.88rem;
+  position: relative;
+}
+
+.helpSupportSuccessBanner button {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  border: 0;
+  background: transparent;
+  color: #166534;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.helpSupportTabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.helpSupportTabs button {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.helpSupportTabActive {
+  color: #2563eb !important;
+  border-bottom-color: #2563eb !important;
+}
+
+.helpSupportPanel {
+  display: grid;
+  gap: 1.1rem;
+  margin-top: 1rem;
+}
+
+.helpSupportQuickLinks h4,
+.helpSupportFaq h4,
+.helpSupportRecent h4 {
+  margin: 0 0 0.55rem;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.helpSupportQuickGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.helpSupportQuickButton {
+  min-height: 38px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.helpSupportQuickButton:hover {
+  background: #dbeafe;
+}
+
+.helpSupportFaqList {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.helpSupportFaqItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.helpSupportFaqQuestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  background: transparent;
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.helpSupportFaqAnswer {
+  margin: 0;
+  padding: 0 0.9rem 0.85rem;
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.helpSupportForm {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.helpSupportForm label {
+  color: #1e293b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.helpSupportForm select,
+.helpSupportForm input,
+.helpSupportForm textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
+  padding: 0.65rem 0.8rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.helpSupportForm select:focus,
+.helpSupportForm input:focus,
+.helpSupportForm textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.helpSupportFormMeta {
+  margin: 0 0 0.25rem;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.helpSupportRecent {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.85rem;
+}
+
+.helpSupportTicketList {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.helpSupportTicketList li {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.65rem 0.8rem;
+}
+
+.helpSupportTicketTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.helpSupportTicketList p {
+  margin: 0.25rem 0;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
+.helpSupportTicketList small {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.helpSupportStatus {
+  display: inline-flex;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.helpSupportStatusopen {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.helpSupportStatusin_progress {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.helpSupportStatusresolved {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.helpSupportMuted {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 640px) {
+  .helpSupportHeader {
+    flex-direction: column;
+  }
+
+  .helpSupportClose {
+    align-self: flex-end;
+  }
+}
+
 .notificationsPage {
   display: grid;
   gap: 1rem;

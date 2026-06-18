@@ -11,6 +11,7 @@ const noteRoutes = require('./note.routes');
 const notificationRoutes = require('./notification.routes');
 const progressRoutes = require('./progress.routes');
 const quizRoutes = require('./quiz.routes');
+const supportRoutes = require('./support.routes');
 const uploadRoutes = require('./upload.routes');
 const userRoutes = require('./user.routes');
 
@@ -36,6 +37,7 @@ router.use('/notes', noteRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/progress', progressRoutes);
 router.use('/quizzes', quizRoutes);
+router.use('/support', supportRoutes);
 router.use('/uploads', uploadRoutes);
 router.use('/users', userRoutes);
 

@@ -16,6 +16,7 @@ import {
 } from '../utils/notificationApi';
 import { changePassword } from '../utils/userApi';
 import Toast from './Toast';
+import HelpSupportModal from './HelpSupportModal';
 
 // Read logged-in user for the top bar (frontend-only; same key as LoginPage).
 function getCurrentUser() {
@@ -78,6 +79,7 @@ export default function DashboardNavbar() {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState('');
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
   const [passwordTouched, setPasswordTouched] = useState({});
   const [passwordVisibility, setPasswordVisibility] = useState({
@@ -186,6 +188,16 @@ export default function DashboardNavbar() {
     setActiveInfoMenu(null);
     resetPasswordModal();
     setIsPasswordModalOpen(true);
+  }
+
+  function handleOpenHelpModal() {
+    setIsMenuOpen(false);
+    setActiveInfoMenu(null);
+    setIsHelpModalOpen(true);
+  }
+
+  function handleCloseHelpModal() {
+    setIsHelpModalOpen(false);
   }
 
   function handleClosePasswordModal() {
@@ -442,7 +454,7 @@ export default function DashboardNavbar() {
                 <FaKey aria-hidden />
                 <span>Change Password</span>
               </button>
-              <button type="button" className={styles.dropdownItem} role="menuitem">
+              <button type="button" className={styles.dropdownItem} role="menuitem" onClick={handleOpenHelpModal}>
                 <FaCircleQuestion aria-hidden />
                 <span>Help and Support</span>
               </button>
@@ -479,6 +491,8 @@ export default function DashboardNavbar() {
           </div>
         </div>
       )}
+
+      {isHelpModalOpen && <HelpSupportModal onClose={handleCloseHelpModal} />}
 
       {isPasswordModalOpen && (
         <div className="lightboxOverlay" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
