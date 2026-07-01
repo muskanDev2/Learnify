@@ -14,6 +14,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../utils/notificationApi';
+import { fetchConversations, fetchUnreadMessageCount } from '../utils/messageApi';
 import { changePassword } from '../utils/userApi';
 import Toast from './Toast';
 import HelpSupportModal from './HelpSupportModal';
@@ -66,6 +67,13 @@ function formatNotificationTime(value) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function truncateMessagePreview(text, max = 64) {
+  const value = String(text || '').trim();
+  if (!value) return 'No messages yet';
+  if (value.length <= max) return value;
+  return `${value.slice(0, max - 1)}…`;
+}
+
 export default function DashboardNavbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -78,6 +86,10 @@ export default function DashboardNavbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState('');
+  const [messageConversations, setMessageConversations] = useState([]);
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [messageError, setMessageError] = useState('');
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
@@ -144,6 +156,35 @@ export default function DashboardNavbar() {
 
     loadNavbarNotifications();
     const intervalId = window.setInterval(loadNavbarNotifications, 30000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadNavbarMessages() {
+      setIsLoadingMessages(true);
+      setMessageError('');
+      try {
+        const [conversationData, unreadCount] = await Promise.all([
+          fetchConversations(),
+          fetchUnreadMessageCount(),
+        ]);
+        if (!isMounted) return;
+        setMessageConversations(conversationData.items || []);
+        setMessageUnreadCount(unreadCount);
+      } catch (error) {
+        if (isMounted) setMessageError(error.message || 'Could not load messages.');
+      } finally {
+        if (isMounted) setIsLoadingMessages(false);
+      }
+    }
+
+    loadNavbarMessages();
+    const intervalId = window.setInterval(loadNavbarMessages, 30000);
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
@@ -282,6 +323,16 @@ export default function DashboardNavbar() {
     navigate('/notifications');
   }
 
+  function handleMessageConversationClick(conversationId) {
+    setActiveInfoMenu(null);
+    navigate(`/messages?conversationId=${conversationId}`);
+  }
+
+  function handleViewAllMessages() {
+    setActiveInfoMenu(null);
+    navigate('/messages');
+  }
+
   function handleLogoutClick() {
     setIsMenuOpen(false);
     setActiveInfoMenu(null);
@@ -339,6 +390,11 @@ export default function DashboardNavbar() {
             aria-expanded={activeInfoMenu === 'messages'}
             onClick={() => handleInfoMenuToggle('messages')}
           >
+            {messageUnreadCount > 0 && (
+              <span className={styles.notificationBadge} aria-label={`${messageUnreadCount} unread messages`}>
+                {messageUnreadCount > 99 ? '99+' : messageUnreadCount}
+              </span>
+            )}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
               <path
                 d="M4 4h16v12H7l-3 3V4Z"
@@ -349,9 +405,45 @@ export default function DashboardNavbar() {
             </svg>
           </button>
           {activeInfoMenu === 'messages' && (
-            <div className={styles.infoDropdown} role="status">
-              We&apos;re currently building this feature to give you a better experience.
-              Stay tuned!
+            <div className={styles.notificationDropdown} role="region" aria-label="Messages">
+              <div className={styles.notificationHeader}>
+                <div>
+                  <strong>Messages</strong>
+                  <span>{messageUnreadCount} unread</span>
+                </div>
+              </div>
+              <div className={styles.notificationList}>
+                {isLoadingMessages ? (
+                  <p className={styles.notificationState}>Loading messages...</p>
+                ) : messageError ? (
+                  <p className={styles.notificationState}>{messageError}</p>
+                ) : messageConversations.length ? (
+                  messageConversations.slice(0, 6).map((conversation) => {
+                    const other = conversation.otherParticipant;
+                    const hasUnread = Number(conversation.unreadCount) > 0;
+                    return (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        className={`${styles.notificationItem} ${hasUnread ? styles.notificationUnread : ''}`}
+                        onClick={() => handleMessageConversationClick(conversation.id)}
+                      >
+                        <span className={styles.notificationItemTop}>
+                          <strong>{other?.name || 'Unknown user'}</strong>
+                          {!hasUnread ? null : <i aria-label="Unread messages" />}
+                        </span>
+                        <span>{truncateMessagePreview(conversation.lastMessage?.text)}</span>
+                        <small>{formatNotificationTime(conversation.lastMessage?.createdAt || conversation.updatedAt)}</small>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className={styles.notificationState}>No conversations yet.</p>
+                )}
+              </div>
+              <button type="button" className={styles.notificationFooterLink} onClick={handleViewAllMessages}>
+                View All Messages
+              </button>
             </div>
           )}
         </div>

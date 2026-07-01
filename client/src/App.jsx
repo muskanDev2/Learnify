@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import CoursesPage from './pages/CoursesPage';
 import MyLearningPage from './pages/MyLearningPage';
+import MessagesPage from './pages/MessagesPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 
@@ -24,6 +25,7 @@ function App() {
         <Route path="/courses" element={<CoursesPage />} />
         <Route path="/my-learning" element={<MyLearningPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/messages" element={<MessagesPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
     </Routes>

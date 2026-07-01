@@ -1037,6 +1037,368 @@ h1, h2, h3 {
   cursor: not-allowed;
 }
 
+/* Messages inbox */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.messagesPage {
+  display: grid;
+  gap: 1rem;
+}
+
+.messagesPageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1rem, 2.4vw, 1.5rem);
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+}
+
+.messagesPageHeader h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(1.55rem, 3vw, 2.1rem);
+}
+
+.messagesPageHeader p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+}
+
+.messagesWorkspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: min(72vh, 760px);
+}
+
+.messagesSidebar,
+.messagesChatPanel {
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.messagesSidebar {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+.messagesSidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.messagesSidebarHeader strong {
+  color: #0f172a;
+}
+
+.messagesSidebarHeader span {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.messagesConversationList {
+  overflow-y: auto;
+  padding: 0.45rem;
+}
+
+.messagesConversationItem {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.messagesConversationItem:hover {
+  border-color: #dbeafe;
+  background: #f8fbff;
+}
+
+.messagesConversationItemActive {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.messagesConversationItemUnread {
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.messagesAvatar {
+  display: inline-grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.messagesAvatarLarge {
+  width: 2.85rem;
+  height: 2.85rem;
+  font-size: 1.1rem;
+}
+
+.messagesConversationBody {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.messagesConversationTop,
+.messagesConversationMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.messagesConversationTop strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+}
+
+.messagesConversationTop small,
+.messagesConversationMeta span,
+.messagesConversationPreview {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.messagesConversationMeta em {
+  color: #1d4ed8;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.74rem;
+}
+
+.messagesConversationPreview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messagesChatPanel {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 0;
+}
+
+.messagesChatHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.messagesChatHeader h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.messagesChatHeader p {
+  margin: 0.15rem 0 0;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.messagesThread {
+  overflow-y: auto;
+  padding: 1rem;
+  display: grid;
+  gap: 0.65rem;
+  align-content: start;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.messagesBubble {
+  max-width: min(78%, 560px);
+  border-radius: 16px;
+  padding: 0.7rem 0.85rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.messagesBubble p {
+  margin: 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.messagesBubble time {
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.messagesBubbleMine {
+  justify-self: end;
+  background: #2563eb;
+  color: #ffffff;
+  border-bottom-right-radius: 6px;
+}
+
+.messagesBubbleMine time {
+  color: #dbeafe;
+}
+
+.messagesBubbleTheirs {
+  justify-self: start;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 6px;
+}
+
+.messagesComposer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.messagesComposer textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+  resize: vertical;
+  min-height: 44px;
+}
+
+.messagesComposer textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.messagesChatPlaceholder,
+.messagesEmptyState {
+  display: grid;
+  gap: 0.35rem;
+  place-content: center;
+  text-align: center;
+  padding: 2rem 1.25rem;
+  color: #64748b;
+}
+
+.messagesChatPlaceholder h3,
+.messagesEmptyState h3 {
+  margin: 0;
+  color: #0f172a;
+}
+
+.messagesNewCard {
+  width: min(520px, 100%);
+}
+
+.messagesNewCard input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.65rem 0.8rem;
+  font: inherit;
+}
+
+.messagesContactList {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.messagesContactList button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.messagesContactList button:hover {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.messagesContactList strong {
+  display: block;
+  color: #0f172a;
+}
+
+.messagesContactList small {
+  color: #64748b;
+}
+
+.messagesContactEmpty {
+  padding: 0.75rem;
+  color: #64748b;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .messagesWorkspace {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .messagesSidebar {
+    max-height: 320px;
+  }
+
+  .messagesChatPanel {
+    min-height: 420px;
+  }
+
+  .messagesComposer {
+    grid-template-columns: 1fr;
+  }
+}
+
 .notificationPreferencesPanel {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) repeat(4, auto);
