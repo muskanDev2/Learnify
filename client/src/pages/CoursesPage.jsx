@@ -35,6 +35,7 @@ import { syncLmsSnapshotFromLocalSoon } from '../utils/lmsStorage';
 import { uploadFiles } from '../utils/uploadApi';
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
 import Toast from '../components/Toast';
+import CourseDiscussionPanel from '../components/CourseDiscussionPanel';
 
 const COURSES_KEY = 'learnify_courses';
 const ENROLLMENTS_KEY = 'learnify_enrollments';
@@ -537,6 +538,12 @@ function CoursesPage() {
     quizTimeLimitMinutes: '20',
     quizMaxAttempts: '1',
   });
+
+  const [activeCourseTab, setActiveCourseTab] = useState('modules');
+
+  useEffect(() => {
+    setActiveCourseTab('modules');
+  }, [selectedCourseId]);
 
   function showDeleteSuccess() {
     setDeleteToastMessage('Item deleted successfully.');
@@ -3066,7 +3073,32 @@ function CoursesPage() {
                 </button>
               </div>
 
-              <div className="courseContentStats">
+              <div className="courseTabs">
+                <button
+                  type="button"
+                  className={`courseTabButton ${activeCourseTab === 'modules' ? 'courseTabButtonActive' : ''}`}
+                  onClick={() => setActiveCourseTab('modules')}
+                >
+                  Modules
+                </button>
+                <button
+                  type="button"
+                  className={`courseTabButton ${activeCourseTab === 'forum' ? 'courseTabButtonActive' : ''}`}
+                  onClick={() => setActiveCourseTab('forum')}
+                >
+                  Discussion Forum
+                </button>
+              </div>
+
+              {activeCourseTab === 'forum' ? (
+                <CourseDiscussionPanel
+                  courseId={selectedCourse.id}
+                  course={selectedCourse}
+                  currentUser={currentUser}
+                />
+              ) : (
+                <>
+                  <div className="courseContentStats">
                 <article>
                   <h4>Modules</h4>
                   <p>{selectedCourse?.modules?.length || 0}</p>
@@ -3348,6 +3380,8 @@ function CoursesPage() {
                     )}
                   </section>
                 </section>
+              )}
+                </>
               )}
 
             </>
