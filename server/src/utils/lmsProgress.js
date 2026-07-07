@@ -118,6 +118,90 @@ async function recalculateCourseProgress(student, course) {
     },
   );
 
+  if (progressPercent >= 100) {
+    // Run certificate generation asynchronously so we do not block user actions
+    (async () => {
+      try {
+        const Certificate = require('../models/Certificate');
+        let certificate = await Certificate.findOne({ student: student._id, course: course._id });
+
+        if (!certificate || !certificate.certificateApproved || !certificate.certificateUrl) {
+          const User = require('../models/User');
+          const { generateAndStoreCertificate } = require('../services/certificate.service');
+          const { createNotification } = require('../services/notification.service');
+
+          // Fetch full student details to ensure name and email are present
+          const studentDoc = await User.findById(student._id);
+          if (!studentDoc) return;
+
+          const courseOwner = await User.findOne({ email: String(course.ownerEmail || '').toLowerCase() }).select('_id name');
+          const instructorName = courseOwner?.name || course.instructor || 'Course Instructor';
+          const approvedBy = courseOwner?._id || null;
+
+          const issueDate = certificate?.issueDate || new Date();
+          const serialNumber =
+            certificate?.serialNumber || `LRN-${course.id}-${String(student._id).slice(-6).toUpperCase()}`;
+
+          if (!certificate) {
+            certificate = new Certificate({ student: student._id, course: course._id });
+          }
+
+          certificate.studentEmail = String(studentDoc.email).toLowerCase();
+          certificate.courseId = course.id;
+          certificate.studentName = studentDoc.name || studentDoc.email;
+          certificate.courseTitle = course.title;
+          certificate.instructorName = instructorName;
+          certificate.certificateApproved = true;
+          if (approvedBy) {
+            certificate.approvedBy = approvedBy;
+          }
+          certificate.approvedAt = new Date();
+          certificate.progressAtApproval = progressPercent;
+          certificate.serialNumber = serialNumber;
+          certificate.issueDate = issueDate;
+
+          const getAutoCertificateBaseUrl = () => {
+            if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+            if (process.env.NODE_ENV === 'production') {
+              return 'https://learnify-api-2con.onrender.com';
+            }
+            return `http://localhost:${process.env.PORT || 5000}`;
+          };
+          const baseUrl = getAutoCertificateBaseUrl();
+          const stored = await generateAndStoreCertificate(
+            {
+              studentName: certificate.studentName,
+              courseTitle: certificate.courseTitle,
+              instructorName,
+              issueDate,
+              serialNumber,
+              courseId: course.id,
+              studentEmail: certificate.studentEmail,
+            },
+            baseUrl,
+          );
+          certificate.certificateUrl = stored.url;
+          certificate.provider = stored.provider;
+
+          await certificate.save();
+
+          await createNotification(student._id, {
+            title: 'Certificate earned!',
+            message: `Congratulations! You completed ${course.title} and your certificate is ready.`,
+            notificationType: 'certificate_approved',
+            relatedEntityId: course.id,
+            relatedEntityType: 'course',
+            courseId: course.id,
+            actionUrl: '/dashboard?tab=progress',
+            dedupeKey: `certificate-${course.id}-${certificate.studentEmail}`,
+          }).catch(() => {});
+        }
+      } catch (certError) {
+        console.error('Error auto-generating certificate on completion:', certError);
+      }
+    })();
+  }
+
   return progress;
 }
 
