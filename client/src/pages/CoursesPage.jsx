@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   getCurrentUser,
   isAdmin as checkAdmin,
@@ -36,6 +36,20 @@ import { uploadFiles } from '../utils/uploadApi';
 import DeleteConfirmationDialog from '../components/DeleteConfirmationDialog';
 import Toast from '../components/Toast';
 import CourseDiscussionPanel from '../components/CourseDiscussionPanel';
+import CourseLiveClassesPanel from '../components/CourseLiveClassesPanel';
+import CourseBreadcrumbs from '../components/CourseBreadcrumbs';
+import {
+  buildCourseSearchParams,
+  parseCourseNav,
+} from '../utils/courseNavigation';
+import {
+  getContentLinksValidationErrors,
+  hasContentLinksValidationErrors,
+  normalizeContentItemLinks,
+  resolveContentItemLinks,
+  sanitizeContentLinksForSave,
+} from '../utils/contentLinks';
+import { getQuizPublishStatusLabel, isQuizPublished, isQuizVisibleToStudent } from '../utils/quizPublish';
 
 const COURSES_KEY = 'learnify_courses';
 const ENROLLMENTS_KEY = 'learnify_enrollments';
@@ -233,7 +247,17 @@ function buildStarterModules() {
 }
 
 function normalizeModuleItems(module) {
-  if (Array.isArray(module.items)) return module.items;
+  if (Array.isArray(module.items)) {
+    return module.items.map((item) => {
+      if (item.type !== 'content') return item;
+      const links = normalizeContentItemLinks(item);
+      return {
+        ...item,
+        links,
+        link: links[0] || item.link || '',
+      };
+    });
+  }
 
   // Small migration: older saved data used "materials" instead of "items".
   if (Array.isArray(module.materials)) {
@@ -261,6 +285,7 @@ function normalizeModuleItems(module) {
 
       if (materialType === 'quiz') {
         const normalizedQuestions = Array.isArray(material.questions) ? material.questions : [];
+        const publishStatus = material.publishStatus === 'draft' ? 'draft' : undefined;
         return {
           id: material.id,
           type: 'quiz',
@@ -275,15 +300,19 @@ function normalizeModuleItems(module) {
           dueAt: material.dueAt || material.dueDate || '',
           gradingStatus: material.gradingStatus || 'Not graded',
           isDelivered: Boolean(material.isDelivered),
+          ...(publishStatus ? { publishStatus } : {}),
         };
       }
+
+      const contentLinks = normalizeContentItemLinks(material);
 
       return {
         id: material.id,
         type: 'content',
         title: material.title || 'Untitled content',
         fileType: CONTENT_FILE_TYPES.includes(materialType) ? materialType : 'pdf',
-        link: material.link || '',
+        link: contentLinks[0] || material.link || '',
+        links: contentLinks,
         fileName: material.fileName || '',
         files: material.files || [],
         isDelivered: Boolean(material.isDelivered),
@@ -393,6 +422,8 @@ function getDefaultQuizQuestion(id = 1) {
 function CoursesPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const courseNav = useMemo(() => parseCourseNav(searchParams), [searchParams]);
   const currentUser = getCurrentUser();
   const isAdmin = checkAdmin(currentUser);
   const isInstructor = checkInstructor(currentUser);
@@ -433,14 +464,11 @@ function CoursesPage() {
   const [students, setStudents] = useState([]);
   const studentEnrolledIds = allEnrollments[userEmail] || [];
   const studentEnrolledIdsKey = studentEnrolledIds.join(',');
-  const courseQueryParam = new URLSearchParams(location.search).get('courseId');
-  const assignmentQueryParam = new URLSearchParams(location.search).get('assignmentId');
-  const contentQueryParam = new URLSearchParams(location.search).get('contentId');
-  const quizQueryParam = new URLSearchParams(location.search).get('quizId');
-  const requestedCourseId = courseQueryParam ? Number(courseQueryParam) : location.state?.courseId || null;
-  const requestedAssignmentId = assignmentQueryParam || location.state?.assignmentId || null;
-  const requestedContentId = contentQueryParam || location.state?.contentId || null;
-  const requestedQuizId = quizQueryParam || location.state?.quizId || null;
+  const requestedCourseId =
+    courseNav.courseId || (location.state?.courseId ? Number(location.state.courseId) : null);
+  const requestedAssignmentId = courseNav.assignmentId || location.state?.assignmentId || null;
+  const requestedContentId = courseNav.contentId || location.state?.contentId || null;
+  const requestedQuizId = courseNav.quizId || location.state?.quizId || null;
 
   const [courses, setCourses] = useState(() =>
     getStoredCourses()
@@ -523,6 +551,7 @@ function CoursesPage() {
     itemType: 'content',
     fileType: 'pdf',
     link: '',
+    links: [''],
     fileName: '',
     uploadedFiles: [],
     instructions: '',
@@ -589,6 +618,7 @@ function CoursesPage() {
       }
 
       module.items.forEach((item) => {
+        if (!canManageContent && !isQuizVisibleToStudent(item)) return;
         if (item.title.toLowerCase().includes(normalizedSearch)) {
           results.push({
             id: `item-${module.id}-${item.id}`,
@@ -603,7 +633,7 @@ function CoursesPage() {
     });
 
     return results;
-  }, [searchTerm, selectedCourse]);
+  }, [searchTerm, selectedCourse, canManageContent]);
 
   const selectedAssignmentItem = useMemo(() => {
     if (!selectedCourse || !selectedAssignment) return null;
@@ -617,11 +647,37 @@ function CoursesPage() {
     return module?.items.find((item) => item.id === selectedContent.itemId) || null;
   }, [selectedContent, selectedCourse]);
 
+  const selectedContentLinkDisplay = useMemo(
+    () => resolveContentItemLinks(normalizeContentItemLinks(selectedContentItem || {})),
+    [selectedContentItem],
+  );
+
   const selectedQuizItem = useMemo(() => {
     if (!selectedCourse || !selectedQuiz) return null;
     const module = selectedCourse.modules.find((item) => item.id === selectedQuiz.moduleId);
     return module?.items.find((item) => item.id === selectedQuiz.itemId) || null;
   }, [selectedCourse, selectedQuiz]);
+
+  const catalogHref = `/dashboard?tab=${coursesPageActiveMenuId}`;
+  const catalogLabel = isAdmin ? 'Courses' : 'My Courses';
+
+  const breadcrumbModule = useMemo(() => {
+    if (!selectedCourse) return null;
+    const moduleId =
+      courseNav.moduleId ||
+      selectedContent?.moduleId ||
+      selectedAssignment?.moduleId ||
+      selectedQuiz?.moduleId;
+    if (!moduleId) return null;
+    return selectedCourse.modules.find((module) => module.id === moduleId) || null;
+  }, [courseNav.moduleId, selectedAssignment, selectedContent, selectedCourse, selectedQuiz]);
+
+  const breadcrumbItem = useMemo(() => {
+    if (selectedContentItem) return { title: selectedContentItem.title };
+    if (selectedAssignmentItem) return { title: selectedAssignmentItem.title };
+    if (selectedQuizItem) return { title: selectedQuizItem.title };
+    return null;
+  }, [selectedAssignmentItem, selectedContentItem, selectedQuizItem]);
 
   const studentQuizAttempt = useMemo(() => {
     if (!isStudent || !selectedQuizItem) return null;
@@ -721,6 +777,54 @@ function CoursesPage() {
       selectedContentItem.files[0]
     );
   }, [selectedContentFileId, selectedContentItem]);
+
+  const moduleItemLinkErrors = useMemo(() => {
+    if (moduleItemForm.itemType !== 'content') return [];
+    const links = moduleItemForm.links?.length ? moduleItemForm.links : [''];
+    return getContentLinksValidationErrors(links);
+  }, [moduleItemForm.itemType, moduleItemForm.links]);
+
+  const moduleItemLinksInvalid = useMemo(
+    () => moduleItemForm.itemType === 'content' && hasContentLinksValidationErrors(moduleItemForm.links),
+    [moduleItemForm.itemType, moduleItemForm.links],
+  );
+
+  useEffect(() => {
+    if (!selectedCourseId || courseNav.courseId) return;
+    setSearchParams(buildCourseSearchParams({ courseId: selectedCourseId, tab: 'modules' }), { replace: true });
+  }, [courseNav.courseId, selectedCourseId, setSearchParams]);
+
+  useEffect(() => {
+    if (courseNav.courseId) {
+      setSelectedCourseId(courseNav.courseId);
+    }
+    const tab = courseNav.tab;
+    setActiveCourseTab(tab === 'forum' ? 'forum' : tab === 'live' ? 'live' : 'modules');
+    if (courseNav.moduleId) {
+      setExpandedModuleIds((prev) =>
+        prev.includes(courseNav.moduleId) ? prev : [...prev, courseNav.moduleId],
+      );
+    }
+
+    if (!courseNav.contentId) {
+      setSelectedContent(null);
+      setSelectedContentFileId(null);
+    }
+    if (!courseNav.assignmentId) {
+      setSelectedAssignment(null);
+    }
+    if (!courseNav.quizId) {
+      setSelectedQuiz(null);
+      setQuizStarted(false);
+    }
+  }, [
+    courseNav.assignmentId,
+    courseNav.contentId,
+    courseNav.courseId,
+    courseNav.moduleId,
+    courseNav.quizId,
+    courseNav.tab,
+  ]);
 
   useEffect(() => {
     if (requestedCourseId) {
@@ -905,6 +1009,45 @@ function CoursesPage() {
     });
   }
 
+  function pushCourseNav(partial, { replace = false } = {}) {
+    const current = parseCourseNav(searchParams);
+    const courseId = partial.courseId ?? selectedCourse?.id ?? current.courseId;
+    const next = {
+      courseId,
+      moduleId: partial.moduleId !== undefined ? partial.moduleId : current.moduleId,
+      contentId: partial.contentId !== undefined ? partial.contentId : current.contentId,
+      assignmentId: partial.assignmentId !== undefined ? partial.assignmentId : current.assignmentId,
+      quizId: partial.quizId !== undefined ? partial.quizId : current.quizId,
+      tab: partial.tab !== undefined ? partial.tab : current.tab,
+    };
+
+    if (partial.clearActivity) {
+      next.contentId = null;
+      next.assignmentId = null;
+      next.quizId = null;
+    }
+
+    setSearchParams(buildCourseSearchParams(next), { replace });
+  }
+
+  function navigateBackToModuleContext() {
+    const current = parseCourseNav(searchParams);
+    setSelectedContent(null);
+    setSelectedContentFileId(null);
+    setSelectedAssignment(null);
+    setSelectedQuiz(null);
+    setQuizStarted(false);
+    setQuizResult(null);
+    setSearchParams(
+      buildCourseSearchParams({
+        courseId: current.courseId || selectedCourse?.id,
+        moduleId: current.moduleId,
+        tab: current.tab,
+      }),
+      { replace: true },
+    );
+  }
+
   function openCreateModuleModal() {
     setModuleModalMode('create');
     setModuleActionId(null);
@@ -1048,6 +1191,7 @@ function CoursesPage() {
       itemType: 'content',
       fileType: 'pdf',
       link: '',
+    links: [''],
       fileName: '',
       uploadedFiles: [],
       instructions: '',
@@ -1074,7 +1218,11 @@ function CoursesPage() {
       title: item.title || '',
       itemType: item.type || 'content',
       fileType: item.fileType || 'pdf',
-      link: item.link || '',
+      links: (() => {
+        const normalized = normalizeContentItemLinks(item);
+        return normalized.length ? normalized : [''];
+      })(),
+      link: normalizeContentItemLinks(item)[0] || item.link || '',
       fileName: item.fileName || '',
       uploadedFiles: item.files || [],
       instructions: item.instructions || '',
@@ -1317,10 +1465,36 @@ function CoursesPage() {
     }));
   }
 
+  function addModuleItemLinkField() {
+    setModuleItemForm((prev) => ({
+      ...prev,
+      links: [...(prev.links?.length ? prev.links : ['']), ''],
+    }));
+  }
+
+  function updateModuleItemLink(index, value) {
+    setModuleItemForm((prev) => {
+      const links = [...(prev.links?.length ? prev.links : [''])];
+      links[index] = value;
+      return { ...prev, links };
+    });
+  }
+
+  function removeModuleItemLinkField(index) {
+    setModuleItemForm((prev) => {
+      const links = [...(prev.links?.length ? prev.links : [''])];
+      links.splice(index, 1);
+      return { ...prev, links: links.length ? links : [''] };
+    });
+  }
+
   function handleSaveModuleItem() {
     if (!selectedCourse || !itemTargetModuleId || !moduleItemForm.title.trim()) return;
     if (moduleUploadProgress) {
       setUploadError('Please wait for the upload to finish before adding this item.');
+      return;
+    }
+    if (moduleItemForm.itemType === 'content' && moduleItemLinksInvalid) {
       return;
     }
 
@@ -1395,6 +1569,11 @@ function CoursesPage() {
                   : 1,
                 openedAt: moduleItemForm.openedAt,
                 dueAt: moduleItemForm.dueAt,
+                publishStatus: isEditing
+                  ? existingItem?.publishStatus === 'draft'
+                    ? 'draft'
+                    : 'published'
+                  : 'draft',
               };
 
               return {
@@ -1409,10 +1588,12 @@ function CoursesPage() {
               };
             }
 
+            const savedLinks = sanitizeContentLinksForSave(moduleItemForm.links);
             const nextContent = {
               ...baseItem,
               fileType: moduleItemForm.fileType,
-              link: moduleItemForm.link.trim(),
+              links: savedLinks,
+              link: savedLinks[0] || '',
               fileName: moduleItemForm.fileName,
               files: moduleItemForm.uploadedFiles,
             };
@@ -1462,6 +1643,12 @@ function CoursesPage() {
     });
   }
 
+  function openContentFileInNewTab(file) {
+    const url = getFileUrl(file);
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   function openStoredFile(file) {
     if (!getFileUrl(file)) return;
     setPreviewFile(file);
@@ -1479,6 +1666,17 @@ function CoursesPage() {
     setExpandedModuleIds((prev) =>
       prev.includes(result.moduleId) ? prev : [...prev, result.moduleId],
     );
+    if (result.resultType === 'item' && selectedCourse) {
+      const module = selectedCourse.modules.find((entry) => entry.id === result.moduleId);
+      const item = module?.items.find((entry) => String(entry.id) === String(result.itemId));
+      if (module && item) {
+        if (item.type === 'content') handleContentClick(module.id, item);
+        else if (item.type === 'assignment') handleAssignmentClick(module.id, item);
+        else if (item.type === 'quiz') handleQuizClick(module.id, item);
+      }
+    } else if (selectedCourse) {
+      pushCourseNav({ moduleId: result.moduleId, clearActivity: true, tab: 'modules' });
+    }
   }
 
   function handleAssignmentClick(moduleId, item) {
@@ -1521,6 +1719,14 @@ function CoursesPage() {
         })
         .catch((error) => setCourseSyncMessage(`Could not load assignment submissions: ${error.message}`));
     }
+
+    pushCourseNav({
+      moduleId,
+      assignmentId: item.id,
+      contentId: null,
+      quizId: null,
+      tab: 'modules',
+    });
   }
 
   function handleContentClick(moduleId, item) {
@@ -1538,6 +1744,13 @@ function CoursesPage() {
       saveContentTime(selectedCourse.id, item.id, 1).catch(() => {});
     }
     markStudentItemCompleted(item.id);
+    pushCourseNav({
+      moduleId,
+      contentId: item.id,
+      assignmentId: null,
+      quizId: null,
+      tab: 'modules',
+    });
   }
 
   function markStudentItemCompleted(itemId) {
@@ -1568,6 +1781,10 @@ function CoursesPage() {
   }
 
   function handleQuizClick(moduleId, item) {
+    if (!canManageContent && !isQuizVisibleToStudent(item)) {
+      setCourseSyncMessage('This quiz is not available yet.');
+      return;
+    }
     setSelectedAssignment(null);
     setSelectedContent(null);
     setSelectedQuiz({ moduleId, itemId: item.id });
@@ -1592,6 +1809,14 @@ function CoursesPage() {
         })
         .catch((error) => setCourseSyncMessage(`Could not load quiz attempts: ${error.message}`));
     }
+
+    pushCourseNav({
+      moduleId,
+      quizId: item.id,
+      contentId: null,
+      assignmentId: null,
+      tab: 'modules',
+    });
   }
 
   function startQuizAttempt() {
@@ -1787,6 +2012,37 @@ function CoursesPage() {
       }),
     );
     cancelQuizQuestionsEditor();
+  }
+
+  function publishSelectedQuiz() {
+    if (!selectedCourse || !selectedQuiz || !selectedQuizItem) return;
+    if (!getQuizQuestions(selectedQuizItem).length) {
+      setCourseSyncMessage('Add at least one question before publishing this quiz.');
+      return;
+    }
+    if (isQuizPublished(selectedQuizItem)) {
+      setCourseSyncMessage('This quiz is already published.');
+      return;
+    }
+
+    updateInstructorCourses((prev) =>
+      prev.map((course) => {
+        if (course.id !== selectedCourse.id) return course;
+        return {
+          ...course,
+          modules: course.modules.map((module) => {
+            if (module.id !== selectedQuiz.moduleId) return module;
+            return {
+              ...module,
+              items: module.items.map((item) =>
+                item.id === selectedQuiz.itemId ? { ...item, publishStatus: 'published' } : item,
+              ),
+            };
+          }),
+        };
+      }),
+    );
+    setCourseSyncMessage('Quiz published. Students can now see and attempt it.');
   }
 
   function updateQuizAnswer(questionId, optionIndex) {
@@ -2065,11 +2321,21 @@ function CoursesPage() {
                 <button
                   type="button"
                   className="heroButton heroButtonSecondary"
-                  onClick={() => setSelectedAssignment(null)}
+                  onClick={navigateBackToModuleContext}
                 >
-                  Back to Modules
+                  Back to Module
                 </button>
               </div>
+
+              <CourseBreadcrumbs
+                dashboardHref="/dashboard"
+                dashboardLabel="Dashboard"
+                catalogHref={catalogHref}
+                catalogLabel={catalogLabel}
+                course={selectedCourse}
+                module={breadcrumbModule}
+                item={breadcrumbItem}
+              />
 
               <section
                 id={`course-detail-assignment-${selectedAssignmentItem.id}`}
@@ -2557,11 +2823,21 @@ function CoursesPage() {
                 <button
                   type="button"
                   className="heroButton heroButtonSecondary"
-                  onClick={() => setSelectedContent(null)}
+                  onClick={navigateBackToModuleContext}
                 >
-                  Back to Modules
+                  Back to Module
                 </button>
               </div>
+
+              <CourseBreadcrumbs
+                dashboardHref="/dashboard"
+                dashboardLabel="Dashboard"
+                catalogHref={catalogHref}
+                catalogLabel={catalogLabel}
+                course={selectedCourse}
+                module={breadcrumbModule}
+                item={breadcrumbItem}
+              />
 
               <section
                 id={`course-detail-content-${selectedContentItem.id}`}
@@ -2579,60 +2855,154 @@ function CoursesPage() {
                 </div>
 
                 <div className="contentViewerFiles">
-                  {selectedContentItem.files?.length ? (
-                    <>
-                      <div className="contentViewerTabs">
-                        {selectedContentItem.files.map((file) => (
-                          <button
-                            key={file.id}
-                            type="button"
-                            className={
-                              activeContentFile?.id === file.id
-                                ? 'contentViewerTab contentViewerTabActive'
-                                : 'contentViewerTab'
-                            }
-                            onClick={() => setSelectedContentFileId(file.id)}
-                          >
-                            {file.name}
-                          </button>
-                        ))}
-                      </div>
+                  {(() => {
+                    const hasFiles = Boolean(selectedContentItem.files?.length);
+                    const { youtubeEmbeds, externalUrls, invalidLinks } = selectedContentLinkDisplay;
+                    const hasAnyResource =
+                      hasFiles || youtubeEmbeds.length > 0 || externalUrls.length > 0;
 
-                      {activeContentFile && (
-                        <article className="contentViewerFileCard">
-                          <div className="contentViewerFileHeader">
-                            <strong>{activeContentFile.name}</strong>
-                            <button
-                              type="button"
-                              className="courseInlineFileButton"
-                              onClick={() => openStoredFile(activeContentFile)}
-                            >
-                              Open in new tab
-                            </button>
-                          </div>
-                          {activeContentFile.mimeType.startsWith('image/') ? (
-                            <img src={getFileUrl(activeContentFile)} alt={activeContentFile.name} className="contentViewerImage" />
-                          ) : activeContentFile.mimeType === 'application/pdf' ? (
-                            <iframe src={getFileUrl(activeContentFile)} title={activeContentFile.name} className="contentViewerFrame" />
-                          ) : activeContentFile.mimeType.startsWith('video/') ? (
-                            <video controls className="contentViewerVideo">
-                              <source src={getFileUrl(activeContentFile)} type={activeContentFile.mimeType} />
-                            </video>
-                          ) : (
-                            <div className="contentViewerFallback">
-                              Preview is not available for this file type. Use "Open in new tab".
+                    if (!hasAnyResource && !invalidLinks.length) {
+                      return (
+                        <div className="contentViewerFallback">
+                          No uploaded content found for this item yet.
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="contentViewerSections">
+                        {hasFiles && (
+                          <section className="contentViewerSection" aria-labelledby="content-learning-materials-heading">
+                            <h3 id="content-learning-materials-heading" className="contentViewerSectionTitle">
+                              Learning Materials
+                            </h3>
+                            <div className="contentViewerTabs">
+                              {selectedContentItem.files.map((file) => (
+                                <button
+                                  key={file.id}
+                                  type="button"
+                                  className={
+                                    activeContentFile?.id === file.id
+                                      ? 'contentViewerTab contentViewerTabActive'
+                                      : 'contentViewerTab'
+                                  }
+                                  onClick={() => setSelectedContentFileId(file.id)}
+                                >
+                                  {file.name}
+                                </button>
+                              ))}
                             </div>
-                          )}
-                        </article>
-                      )}
-                    </>
-                  ) : selectedContentItem.link ? (
-                    <iframe src={selectedContentItem.link} title={selectedContentItem.title} className="contentViewerFrame" />
-                  ) : (
-                    <div className="contentViewerFallback">
-                      No uploaded content found for this item yet.
-                    </div>
-                  )}
+
+                            {activeContentFile && (
+                              <article className="contentViewerFileCard">
+                                <div className="contentViewerFileHeader">
+                                  <strong>{activeContentFile.name}</strong>
+                                  <div className="contentViewerFileActions">
+                                    <button
+                                      type="button"
+                                      className="courseInlineFileButton"
+                                      onClick={() => openContentFileInNewTab(activeContentFile)}
+                                    >
+                                      Open in new tab
+                                    </button>
+                                    {canManageContent && (
+                                      <button
+                                        type="button"
+                                        className="courseInlineFileButton"
+                                        onClick={() => openStoredFile(activeContentFile)}
+                                      >
+                                        Preview &amp; download
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                {activeContentFile.mimeType.startsWith('image/') ? (
+                                  <img
+                                    src={getFileUrl(activeContentFile)}
+                                    alt={activeContentFile.name}
+                                    className="contentViewerImage"
+                                  />
+                                ) : activeContentFile.mimeType === 'application/pdf' ? (
+                                  <iframe
+                                    src={getFileUrl(activeContentFile)}
+                                    title={activeContentFile.name}
+                                    className="contentViewerFrame"
+                                  />
+                                ) : activeContentFile.mimeType.startsWith('video/') ? (
+                                  <video controls className="contentViewerVideo">
+                                    <source
+                                      src={getFileUrl(activeContentFile)}
+                                      type={activeContentFile.mimeType}
+                                    />
+                                  </video>
+                                ) : (
+                                  <div className="contentViewerFallback">
+                                    Preview is not available for this file type. Use &quot;Open in new tab&quot;.
+                                  </div>
+                                )}
+                              </article>
+                            )}
+                          </section>
+                        )}
+
+                        {youtubeEmbeds.length > 0 && (
+                          <section className="contentViewerSection" aria-labelledby="content-video-lecture-heading">
+                            <h3 id="content-video-lecture-heading" className="contentViewerSectionTitle">
+                              Video Lecture{youtubeEmbeds.length > 1 ? 's' : ''}
+                            </h3>
+                            <div className="contentViewerYoutubeGrid">
+                              {youtubeEmbeds.map((entry, index) => (
+                                <div key={entry.id} className="contentViewerYoutubeStackItem">
+                                  {youtubeEmbeds.length > 1 && (
+                                    <p className="contentViewerYoutubeLabel">Video {index + 1}</p>
+                                  )}
+                                  <div className="contentViewerYoutubeWrap">
+                                    <iframe
+                                      src={entry.embedUrl}
+                                      title={`${selectedContentItem.title} — video ${index + 1}`}
+                                      className="contentViewerYoutubeFrame"
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                      allowFullScreen
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                        )}
+
+                        {externalUrls.length > 0 && (
+                          <section className="contentViewerSection" aria-labelledby="content-additional-resources-heading">
+                            <h3 id="content-additional-resources-heading" className="contentViewerSectionTitle">
+                              Additional Resources
+                            </h3>
+                            <ul className="contentViewerExternalLinkList">
+                              {externalUrls.map((entry, index) => (
+                                <li key={entry.id} className="contentViewerExternalLink">
+                                  <a href={entry.url} target="_blank" rel="noopener noreferrer">
+                                    {externalUrls.length > 1 ? `Open resource ${index + 1} in new tab` : 'Open link in new tab'}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        )}
+
+                        {invalidLinks.length > 0 && (
+                          <section className="contentViewerSection" aria-labelledby="content-link-error-heading">
+                            <h3 id="content-link-error-heading" className="contentViewerSectionTitle">
+                              Additional Resources
+                            </h3>
+                            <div className="contentViewerFallback">
+                              {invalidLinks.length === 1
+                                ? 'One link could not be displayed. Ask your instructor to check the URL.'
+                                : `${invalidLinks.length} links could not be displayed. Ask your instructor to check the URLs.`}
+                            </div>
+                          </section>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </section>
             </>
@@ -2641,16 +3011,43 @@ function CoursesPage() {
               <div className="coursesPageHeader">
                 <div>
                   <h2>{selectedQuizItem.title}</h2>
-                  <p>Quiz workspace (automatic grading)</p>
+                  <p>
+                    Quiz workspace (automatic grading)
+                    {canManageContent && (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <span
+                          className={
+                            isQuizPublished(selectedQuizItem)
+                              ? 'courseItemMetaBadge courseItemMetaBadgePublished'
+                              : 'courseItemMetaBadge courseItemMetaBadgeDraft'
+                          }
+                        >
+                          {getQuizPublishStatusLabel(selectedQuizItem)}
+                        </span>
+                      </>
+                    )}
+                  </p>
                 </div>
                 <button
                   type="button"
                   className="heroButton heroButtonSecondary"
-                  onClick={() => setSelectedQuiz(null)}
+                  onClick={navigateBackToModuleContext}
                 >
-                  Back to Modules
+                  Back to Module
                 </button>
               </div>
+
+              <CourseBreadcrumbs
+                dashboardHref="/dashboard"
+                dashboardLabel="Dashboard"
+                catalogHref={catalogHref}
+                catalogLabel={catalogLabel}
+                course={selectedCourse}
+                module={breadcrumbModule}
+                item={breadcrumbItem}
+              />
 
               <section
                 id={`course-detail-quiz-${selectedQuizItem.id}`}
@@ -2659,6 +3056,10 @@ function CoursesPage() {
                 {canManageContent ? (
                   <>
                     <section className="assignmentSummaryGrid">
+                      <article>
+                        <h4>Status</h4>
+                        <p>{getQuizPublishStatusLabel(selectedQuizItem)}</p>
+                      </article>
                       <article>
                         <h4>Instructions</h4>
                         <p>{selectedQuizItem.instructions || 'No quiz instructions added yet.'}</p>
@@ -2676,6 +3077,25 @@ function CoursesPage() {
                         <p>{selectedQuizItem.maxAttempts || 1}</p>
                       </article>
                     </section>
+
+                    {!isQuizPublished(selectedQuizItem) && (
+                      <div className="dashboardFeedback" role="status">
+                        This quiz is in <strong>Draft</strong> mode. Students cannot see it until you publish.
+                      </div>
+                    )}
+
+                    <div className="profileModalActions">
+                      {!isQuizPublished(selectedQuizItem) && (
+                        <button
+                          type="button"
+                          className="profilePrimaryButton"
+                          onClick={publishSelectedQuiz}
+                          disabled={!getQuizQuestions(selectedQuizItem).length}
+                        >
+                          Publish Quiz
+                        </button>
+                      )}
+                    </div>
 
                     <section className="assignmentDetailPanel">
                       {quizQuestionEditorMode === 'edit' ? (
@@ -3059,32 +3479,51 @@ function CoursesPage() {
             </>
           ) : (
             <>
+              <CourseBreadcrumbs
+                dashboardHref="/dashboard"
+                dashboardLabel="Dashboard"
+                catalogHref={catalogHref}
+                catalogLabel={catalogLabel}
+                course={selectedCourse}
+                module={breadcrumbModule}
+                item={null}
+              />
+
               <div className="coursesPageHeader">
                 <div>
                   <h2>{selectedCourse?.title || 'Untitled Course'}</h2>
                   <p>{selectedCourse?.description || 'No description available.'}</p>
                 </div>
-                <button
-                  type="button"
-                  className="heroButton heroButtonSecondary"
-                  onClick={() => navigate('/dashboard')}
-                >
-                  Back to My Courses
-                </button>
               </div>
 
               <div className="courseTabs">
                 <button
                   type="button"
                   className={`courseTabButton ${activeCourseTab === 'modules' ? 'courseTabButtonActive' : ''}`}
-                  onClick={() => setActiveCourseTab('modules')}
+                  onClick={() => {
+                    setActiveCourseTab('modules');
+                    pushCourseNav({ tab: 'modules', clearActivity: true }, { replace: true });
+                  }}
                 >
                   Modules
                 </button>
                 <button
                   type="button"
+                  className={`courseTabButton ${activeCourseTab === 'live' ? 'courseTabButtonActive' : ''}`}
+                  onClick={() => {
+                    setActiveCourseTab('live');
+                    pushCourseNav({ tab: 'live', clearActivity: true }, { replace: true });
+                  }}
+                >
+                  Live Classes
+                </button>
+                <button
+                  type="button"
                   className={`courseTabButton ${activeCourseTab === 'forum' ? 'courseTabButtonActive' : ''}`}
-                  onClick={() => setActiveCourseTab('forum')}
+                  onClick={() => {
+                    setActiveCourseTab('forum');
+                    pushCourseNav({ tab: 'forum', clearActivity: true }, { replace: true });
+                  }}
                 >
                   Discussion Forum
                 </button>
@@ -3095,6 +3534,13 @@ function CoursesPage() {
                   courseId={selectedCourse.id}
                   course={selectedCourse}
                   currentUser={currentUser}
+                />
+              ) : activeCourseTab === 'live' ? (
+                <CourseLiveClassesPanel
+                  courseId={selectedCourse.id}
+                  course={selectedCourse}
+                  currentUser={currentUser}
+                  canManage={canManageContent}
                 />
               ) : (
                 <>
@@ -3173,7 +3619,13 @@ function CoursesPage() {
                         <button
                           type="button"
                           className="courseAccordionToggle"
-                          onClick={() => toggleModuleExpanded(module.id)}
+                          onClick={() => {
+                            toggleModuleExpanded(module.id);
+                            pushCourseNav(
+                              { moduleId: module.id, clearActivity: true, tab: 'modules' },
+                              { replace: true },
+                            );
+                          }}
                         >
                           <span className={isExpanded ? 'courseAccordionArrow courseAccordionArrowOpen' : 'courseAccordionArrow'}>
                             &gt;
@@ -3198,10 +3650,21 @@ function CoursesPage() {
 
                       {isExpanded && (
                         <div className="courseAccordionBody">
-                          {module.items.length === 0 ? (
-                            <p className="courseEmptyModuleText">No items added in this module yet.</p>
-                          ) : (
-                            module.items.map((item) => (
+                          {(() => {
+                            const visibleModuleItems = module.items.filter(
+                              (item) => canManageContent || isQuizVisibleToStudent(item),
+                            );
+                            if (module.items.length === 0) {
+                              return (
+                                <p className="courseEmptyModuleText">No items added in this module yet.</p>
+                              );
+                            }
+                            if (visibleModuleItems.length === 0) {
+                              return (
+                                <p className="courseEmptyModuleText">No published items in this module yet.</p>
+                              );
+                            }
+                            return visibleModuleItems.map((item) => (
                               <div
                                 id={`course-item-${item.type}-${item.id}`}
                                 key={item.id}
@@ -3256,6 +3719,17 @@ function CoursesPage() {
                                       <strong className="courseItemTitle">{item.title}</strong>
                                     )}
                                     <span className="courseItemMetaBadge">{getItemMetaText(item)}</span>
+                                    {item.type === 'quiz' && canManageContent && (
+                                      <span
+                                        className={
+                                          isQuizPublished(item)
+                                            ? 'courseItemMetaBadge courseItemMetaBadgePublished'
+                                            : 'courseItemMetaBadge courseItemMetaBadgeDraft'
+                                        }
+                                      >
+                                        {getQuizPublishStatusLabel(item)}
+                                      </span>
+                                    )}
                                   </div>
 
                                   {item.type === 'assignment' && (
@@ -3333,8 +3807,8 @@ function CoursesPage() {
                                   </div>
                                 )}
                               </div>
-                            ))
-                          )}
+                            ));
+                          })()}
                         </div>
                       )}
                     </article>
@@ -3460,14 +3934,47 @@ function CoursesPage() {
                     <option value="image">Image</option>
                   </select>
 
-                  <label htmlFor="module-item-link">Link (optional)</label>
-                  <input
-                    id="module-item-link"
-                    name="link"
-                    value={moduleItemForm.link}
-                    onChange={handleModuleItemFormChange}
-                    placeholder="https://..."
-                  />
+                  <label>Links (optional)</label>
+                  {(moduleItemForm.links?.length ? moduleItemForm.links : ['']).map((linkValue, linkIndex) => {
+                    const linkError = moduleItemLinkErrors[linkIndex] || '';
+                    const linkInputId = `module-item-link-${linkIndex}`;
+                    return (
+                      <div key={linkInputId} className="contentLinkFieldRow">
+                        <input
+                          id={linkInputId}
+                          value={linkValue}
+                          onChange={(event) => updateModuleItemLink(linkIndex, event.target.value)}
+                          placeholder="https://www.youtube.com/watch?v=... or any URL"
+                          aria-invalid={linkError ? true : undefined}
+                          aria-describedby={linkError ? `${linkInputId}-error` : undefined}
+                        />
+                        {(moduleItemForm.links?.length || 1) > 1 && (
+                          <button
+                            type="button"
+                            className="heroButton heroButtonSecondary contentLinkRemoveButton"
+                            onClick={() => removeModuleItemLinkField(linkIndex)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                        {linkError ? (
+                          <p id={`${linkInputId}-error`} className="errorText formError">
+                            {linkError}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  <div className="profileModalActions contentLinkFieldActions">
+                    <button type="button" className="heroButton heroButtonSecondary" onClick={addModuleItemLinkField}>
+                      Add another link
+                    </button>
+                  </div>
+                  {!moduleItemLinksInvalid && (
+                    <p className="authSubtext">
+                      YouTube links play embedded in Learnify. Other URLs appear under Additional Resources for students.
+                    </p>
+                  )}
 
                   <label htmlFor="module-item-file">Upload files</label>
                   <div
@@ -3633,7 +4140,7 @@ function CoursesPage() {
                 type="button"
                 className="profilePrimaryButton"
                 onClick={handleSaveModuleItem}
-                disabled={Boolean(moduleUploadProgress)}
+                disabled={Boolean(moduleUploadProgress) || moduleItemLinksInvalid}
               >
                 {moduleUploadProgress
                   ? 'Uploading...'
@@ -3653,7 +4160,11 @@ function CoursesPage() {
             <div className="filePreviewHeader">
               <div>
                 <h3>{previewFile.name}</h3>
-                <p className="authSubtext">Preview uploaded file and download it if needed.</p>
+                <p className="authSubtext">
+                  {canManageContent
+                    ? 'Preview uploaded file and download it if needed.'
+                    : 'Preview uploaded file.'}
+                </p>
               </div>
             </div>
 
@@ -3668,19 +4179,23 @@ function CoursesPage() {
                 </video>
               ) : (
                 <div className="contentViewerFallback">
-                  Preview is not available for this file type yet. You can still download it below.
+                  {canManageContent
+                    ? 'Preview is not available for this file type yet. You can still download it below.'
+                    : 'Preview is not available for this file type. Use open in new tab from the content viewer.'}
                 </div>
               )}
             </div>
 
             <div className="profileModalActions">
-              <a
-                href={getFileUrl(previewFile)}
-                download={previewFile.name}
-                className="profilePrimaryButton filePreviewDownloadButton"
-              >
-                Download
-              </a>
+              {canManageContent && (
+                <a
+                  href={getFileUrl(previewFile)}
+                  download={previewFile.name}
+                  className="profilePrimaryButton filePreviewDownloadButton"
+                >
+                  Download
+                </a>
+              )}
               <button type="button" className="heroButton heroButtonSecondary" onClick={closePreviewFile}>
                 Close
               </button>

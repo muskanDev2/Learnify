@@ -1,133 +1,199 @@
-import { useEffect, useMemo, useState } from 'react';
-import { fetchCourses } from '../utils/courseApi';
-import { fetchEnrollments } from '../utils/enrollmentApi';
-import { fetchProgress } from '../utils/progressApi';
-import { fetchUsers } from '../utils/userApi';
-import { fetchAdminProgressStats } from '../utils/adminStatsApi';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import DashboardChartCard from './DashboardChartCard';
+import ReportFiltersBar from './ReportFiltersBar';
+import { fetchAdminReports } from '../utils/adminStatsApi';
+import { DEFAULT_ADMIN_REPORT_FILTER } from '../utils/reportFilters';
 
-function getCourseItemCount(course) {
-  return (course.modules || []).reduce(
-    (sum, module) => sum + ((module.items || []).length || 0),
-    0,
+const BAR_ENROLL = '#2563eb';
+const AXIS = '#64748b';
+const GRID = '#e2e8f0';
+
+function EnrollmentChartTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="dashboardChartTooltip">
+      <strong>{row.fullTitle}</strong>
+      <div>Enrollments: {row.enrollments}</div>
+      <div>Avg completion: {row.averageCompletion}%</div>
+    </div>
   );
 }
 
 export default function AdminReportsPanel() {
-  const [users, setUsers] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [enrollments, setEnrollments] = useState({});
-  const [studentProgress, setStudentProgress] = useState({});
-  const [progressStats, setProgressStats] = useState(null);
+  const [filter, setFilter] = useState(DEFAULT_ADMIN_REPORT_FILTER);
+  const [reportData, setReportData] = useState(null);
+  const [courseOptions, setCourseOptions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
-    Promise.all([
-      fetchUsers(),
-      fetchCourses(),
-      fetchEnrollments(),
-      fetchProgress(),
-      fetchAdminProgressStats(),
-    ])
-      .then(([apiUsers, apiCourses, apiEnrollments, apiProgress, apiProgressStats]) => {
-        setUsers(apiUsers);
-        setCourses(apiCourses);
-        setEnrollments(apiEnrollments);
-        setStudentProgress(apiProgress);
-        setProgressStats(apiProgressStats);
-      })
-      .catch(() => {});
+  const loadReports = useCallback(async (nextFilter) => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const data = await fetchAdminReports(nextFilter);
+      setReportData(data);
+      if (Array.isArray(data?.courseOptions)) {
+        setCourseOptions(data.courseOptions);
+      }
+    } catch (error) {
+      setReportData(null);
+      setLoadError(error.message || 'Could not load reports.');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const ownerNameByEmail = useMemo(() => {
-    const map = new Map();
-    users.forEach((user) => {
-      map.set((user.email || '').toLowerCase(), user.name || user.email || 'Unknown');
-    });
-    return map;
-  }, [users]);
+  useEffect(() => {
+    loadReports(filter);
+  }, [filter, loadReports]);
 
-  const reportRows = useMemo(() => {
-    return courses.map((course) => {
-      const courseId = course.id;
-      const totalItems = getCourseItemCount(course);
+  const summary = reportData?.summary;
+  const courseRows = reportData?.courses || [];
+  const hasActivity = courseRows.some((row) => row.enrolledCount > 0 || row.averageCompletion > 0);
 
-      const enrolledStudentEmails = Object.entries(enrollments)
-        .filter(([, ids]) => Array.isArray(ids) && ids.includes(courseId))
-        .map(([email]) => email.toLowerCase());
+  const chartData = useMemo(
+    () =>
+      courseRows
+        .filter((row) => row.enrolledCount > 0 || filter.courseId !== 'all')
+        .map((row) => ({
+          id: row.id,
+          label: row.title.length > 18 ? `${row.title.slice(0, 16)}…` : row.title,
+          fullTitle: row.title,
+          enrollments: row.enrolledCount,
+          averageCompletion: row.averageCompletion,
+        }))
+        .slice(0, filter.courseId !== 'all' ? 1 : 10),
+    [courseRows, filter.courseId],
+  );
 
-      const enrolledCount = enrolledStudentEmails.length;
-
-      let averageCompletion = 0;
-      if (enrolledCount > 0 && totalItems > 0) {
-        const completionPercents = enrolledStudentEmails.map((studentEmail) => {
-          const completedMap = (studentProgress[studentEmail] || {})[courseId] || {};
-          const completedCount = Object.values(completedMap).filter(Boolean).length;
-          return Math.round((completedCount / totalItems) * 100);
-        });
-        const sum = completionPercents.reduce((acc, value) => acc + value, 0);
-        averageCompletion = Math.round(sum / completionPercents.length);
-      }
-
-      return {
-        id: courseId,
-        title: course.title || 'Untitled course',
-        owner:
-          ownerNameByEmail.get((course.ownerEmail || '').toLowerCase()) ||
-          course.instructor ||
-          'Unknown',
-        enrolledCount,
-        averageCompletion,
-      };
-    });
-  }, [courses, enrollments, ownerNameByEmail, studentProgress]);
+  const filterSummary = reportData
+    ? `${reportData.courseLabel || 'All Courses'} · ${reportData.periodLabel || 'All time'}`
+    : '';
 
   return (
     <div className="dashboardPanel">
       <h3>Reports</h3>
-      <p>Simple per-course enrollment and completion overview.</p>
+      <p>Enrollment and completion overview filtered by course and time.</p>
 
-      {progressStats && (
-        <div className="dashboardQuickGrid">
-          <article className="dashboardStatCard">
-            <h4>Total Enrollments</h4>
-            <p>{progressStats.totalEnrollments}</p>
-          </article>
-          <article className="dashboardStatCard">
-            <h4>Average Progress</h4>
-            <p>{progressStats.averageProgressPercent}%</p>
-          </article>
-          <article className="dashboardStatCard">
-            <h4>Completed Courses</h4>
-            <p>{progressStats.completedCourses}</p>
-          </article>
+      <ReportFiltersBar
+        courses={courseOptions}
+        value={filter}
+        onChange={setFilter}
+        disabled={isLoading}
+      />
+
+      {filterSummary && <p className="authSubtext reportPeriodLabel">Showing: {filterSummary}</p>}
+
+      {loadError && <p className="errorText formError">{loadError}</p>}
+
+      {isLoading ? (
+        <div className="dashboardFeedback" aria-live="polite">
+          Loading reports...
         </div>
-      )}
-
-      <section className="adminUsersTable adminUsersTableWide">
-        <div className="adminUsersTableHeader adminReportsTableHeaderWide">
-          <span>Course</span>
-          <span>Owner</span>
-          <span>Enrolled</span>
-          <span>Avg Completion</span>
-        </div>
-
-        {reportRows.length ? (
-          reportRows.map((row) => (
-            <div key={row.id} className="adminUsersTableRow adminReportsTableRowWide">
-              <span>{row.title}</span>
-              <span>{row.owner}</span>
-              <span>{String(row.enrolledCount)}</span>
-              <span>{row.averageCompletion}%</span>
+      ) : (
+        <>
+          {summary && (
+            <div className="dashboardQuickGrid">
+              <article className="dashboardStatCard">
+                <h4>Total Enrollments</h4>
+                <p>{summary.totalEnrollments}</p>
+              </article>
+              <article className="dashboardStatCard">
+                <h4>Average Progress</h4>
+                <p>{summary.averageProgressPercent}%</p>
+              </article>
+              <article className="dashboardStatCard">
+                <h4>Completed Courses</h4>
+                <p>{summary.completedCourses}</p>
+              </article>
             </div>
-          ))
-        ) : (
-          <div className="adminUsersTableRow adminReportsTableRowWide">
-            <span>No courses available yet.</span>
-            <span>-</span>
-            <span>-</span>
-            <span>-</span>
+          )}
+
+          <div className="dashboardChartGrid reportChartGrid">
+            <DashboardChartCard
+              title="Enrollments in selected period"
+              footnote={chartData.length ? `${chartData.length} course(s) shown` : 'No data for this filter.'}
+              ariaLabel="Bar chart of enrollments by course for the selected filters"
+            >
+              {chartData.length === 0 ? (
+                <p className="dashboardChartEmpty">No enrollment data for the selected course and time.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData}
+                    layout={chartData.length === 1 ? 'horizontal' : 'vertical'}
+                    margin={{ top: 8, right: 12, left: 8, bottom: 4 }}
+                  >
+                    <CartesianGrid stroke={GRID} horizontal={chartData.length === 1} vertical={chartData.length !== 1} />
+                    {chartData.length === 1 ? (
+                      <>
+                        <XAxis type="number" allowDecimals={false} tick={{ fill: AXIS, fontSize: 12 }} />
+                        <YAxis type="category" dataKey="label" width={120} tick={{ fill: AXIS, fontSize: 11 }} />
+                      </>
+                    ) : (
+                      <>
+                        <XAxis type="number" allowDecimals={false} tick={{ fill: AXIS, fontSize: 12 }} />
+                        <YAxis
+                          type="category"
+                          dataKey="label"
+                          width={100}
+                          tick={{ fill: AXIS, fontSize: 11 }}
+                        />
+                      </>
+                    )}
+                    <Tooltip content={<EnrollmentChartTooltip />} cursor={{ fill: 'rgba(37, 99, 235, 0.06)' }} />
+                    <Bar dataKey="enrollments" fill={BAR_ENROLL} radius={[0, 6, 6, 0]} maxBarSize={32} name="Enrollments" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </DashboardChartCard>
           </div>
-        )}
-      </section>
+
+          <section className="adminUsersTable adminUsersTableWide">
+            <div className="adminUsersTableHeader adminReportsTableHeaderWide">
+              <span>Course</span>
+              <span>Owner</span>
+              <span>Enrolled</span>
+              <span>Avg Completion</span>
+            </div>
+
+            {!courseRows.length ? (
+              <div className="adminUsersTableRow adminReportsTableRowWide">
+                <span>No courses available yet.</span>
+                <span>-</span>
+                <span>-</span>
+                <span>-</span>
+              </div>
+            ) : !hasActivity && (filter.period !== 'all_time' || filter.courseId !== 'all') ? (
+              <div className="adminUsersTableRow adminReportsTableRowWide reportEmptyStateRow">
+                <span>No enrollment or progress activity found for these filters.</span>
+                <span>-</span>
+                <span>-</span>
+                <span>-</span>
+              </div>
+            ) : (
+              courseRows.map((row) => (
+                <div key={row.id} className="adminUsersTableRow adminReportsTableRowWide">
+                  <span>{row.title}</span>
+                  <span>{row.owner}</span>
+                  <span>{String(row.enrolledCount)}</span>
+                  <span>{row.averageCompletion}%</span>
+                </div>
+              ))
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
