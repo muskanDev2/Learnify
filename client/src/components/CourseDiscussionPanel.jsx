@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   fetchDiscussions,
   createDiscussion,
@@ -8,7 +8,7 @@ import {
   deleteReply,
 } from '../utils/discussionApi';
 
-function CourseDiscussionPanel({ courseId, course, currentUser }) {
+function CourseDiscussionPanel({ courseId, currentUser }) {
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

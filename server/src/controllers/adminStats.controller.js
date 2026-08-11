@@ -2,6 +2,11 @@ const Course = require('../models/Course');
 const CourseProgress = require('../models/CourseProgress');
 const Enrollment = require('../models/Enrollment');
 const User = require('../models/User');
+const {
+  enrollmentDateInRange,
+  progressCompletedInRange,
+} = require('../utils/reportDateRange');
+const { parseReportFilters } = require('../utils/reportFilters');
 
 function percentChange(current, previous) {
   if (previous === 0) return current > 0 ? 100 : 0;
@@ -84,4 +89,129 @@ async function getProgressStats(req, res, next) {
   }
 }
 
-module.exports = { getProgressStats, getUserStats };
+async function getAdminReports(req, res, next) {
+  try {
+    const { start, end, label: periodLabel, period, courseId } = parseReportFilters(req.query);
+
+    const [enrollments, progressRows, allCourses, users] = await Promise.all([
+      Enrollment.find(),
+      CourseProgress.find(),
+      Course.find().select('id title ownerEmail instructor').sort({ title: 1 }),
+      User.find().select('name email role'),
+    ]);
+
+    const courses = courseId ? allCourses.filter((course) => course.id === courseId) : allCourses;
+    const courseFilter = courseId ? (row) => row.courseId === courseId : () => true;
+
+    const ownerNameByEmail = new Map(
+      users.map((user) => [String(user.email || '').toLowerCase(), user.name || user.email || 'Unknown']),
+    );
+
+    const activeEnrollments = enrollments.filter((row) => row.status !== 'dropped' && courseFilter(row));
+    const enrollmentsInRange = activeEnrollments.filter((row) => {
+      if (!start && !end) return true;
+      return enrollmentDateInRange(row, start, end);
+    });
+
+    const scopedProgressRows = progressRows.filter((row) => courseFilter(row));
+
+    const progressInRange = scopedProgressRows.filter((row) => {
+      if (!start && !end) return true;
+      const activityDate = row.updatedAt || row.lastActivityAt || row.createdAt;
+      if (!activityDate) return false;
+      const value = new Date(activityDate);
+      if (start && value < start) return false;
+      if (end && value > end) return false;
+      return true;
+    });
+
+    const completedCourses = scopedProgressRows.filter((row) =>
+      progressCompletedInRange(row, start, end),
+    ).length;
+
+    const averageProgressPercent = (() => {
+      const rowsForAverage = !start && !end ? scopedProgressRows : progressInRange;
+      if (!rowsForAverage.length) return 0;
+
+      if (!start && !end) {
+        return Math.round(
+          rowsForAverage.reduce((sum, row) => sum + (row.progressPercent || 0), 0) / rowsForAverage.length,
+        );
+      }
+
+      const enrolledEmails = new Set(
+        enrollmentsInRange.map((row) => String(row.studentEmail || '').toLowerCase()),
+      );
+      const progressForEnrolled = rowsForAverage.filter((row) => {
+        const student = users.find((user) => String(user._id) === String(row.student));
+        const email = String(student?.email || '').toLowerCase();
+        return enrolledEmails.has(email);
+      });
+
+      if (!progressForEnrolled.length) return 0;
+      return Math.round(
+        progressForEnrolled.reduce((sum, row) => sum + (row.progressPercent || 0), 0) /
+          progressForEnrolled.length,
+      );
+    })();
+
+    const courseRows = courses.map((course) => {
+      const courseEnrollments = enrollmentsInRange.filter((row) => row.courseId === course.id);
+      const enrolledCount = courseEnrollments.length;
+      const enrolledEmails = new Set(
+        courseEnrollments.map((row) => String(row.studentEmail || '').toLowerCase()),
+      );
+
+      const progressForCourse = scopedProgressRows.filter((row) => row.courseId === course.id);
+      const relevantProgress =
+        !start && !end
+          ? progressForCourse
+          : progressForCourse.filter((row) => {
+              const student = users.find((user) => String(user._id) === String(row.student));
+              const email = String(student?.email || '').toLowerCase();
+              return enrolledEmails.has(email);
+            });
+
+      const averageCompletion = relevantProgress.length
+        ? Math.round(
+            relevantProgress.reduce((sum, row) => sum + (row.progressPercent || 0), 0) /
+              relevantProgress.length,
+          )
+        : 0;
+
+      return {
+        id: course.id,
+        title: course.title || 'Untitled course',
+        owner:
+          ownerNameByEmail.get(String(course.ownerEmail || '').toLowerCase()) ||
+          course.instructor ||
+          'Unknown',
+        enrolledCount,
+        averageCompletion,
+      };
+    });
+
+    const selectedCourse = courseId ? allCourses.find((course) => course.id === courseId) : null;
+
+    return res.json({
+      success: true,
+      data: {
+        period,
+        periodLabel,
+        courseId: courseId || 'all',
+        courseLabel: selectedCourse ? selectedCourse.title : 'All Courses',
+        courseOptions: allCourses.map((course) => ({ id: course.id, title: course.title || 'Untitled course' })),
+        summary: {
+          totalEnrollments: enrollmentsInRange.length,
+          averageProgressPercent,
+          completedCourses,
+        },
+        courses: courseRows,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { getAdminReports, getProgressStats, getUserStats };

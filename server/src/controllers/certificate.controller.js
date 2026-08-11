@@ -4,7 +4,10 @@ const CourseProgress = require('../models/CourseProgress');
 const Enrollment = require('../models/Enrollment');
 const User = require('../models/User');
 const { recalculateCourseProgress } = require('../utils/lmsProgress');
-const { generateAndStoreCertificate } = require('../services/certificate.service');
+const {
+  buildPdfBufferForCertificate,
+  generateAndStoreCertificate,
+} = require('../services/certificate.service');
 const { createNotification } = require('../services/notification.service');
 
 function isAdminUser(user) {
@@ -164,23 +167,23 @@ async function approveCertificate(req, res, next) {
     certificate.serialNumber = serialNumber;
     certificate.issueDate = issueDate;
 
-    if (!certificate.certificateUrl) {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const stored = await generateAndStoreCertificate(
-        {
-          studentName: certificate.studentName,
-          courseTitle: certificate.courseTitle,
-          instructorName,
-          issueDate,
-          serialNumber,
-          courseId,
-          studentEmail: certificate.studentEmail,
-        },
-        baseUrl,
-      );
-      certificate.certificateUrl = stored.url;
-      certificate.provider = stored.provider;
-    }
+    const baseUrl =
+      process.env.BACKEND_URL?.replace(/\/$/, '') || `${req.protocol}://${req.get('host')}`;
+    const stored = await generateAndStoreCertificate(
+      {
+        studentName: certificate.studentName,
+        courseTitle: certificate.courseTitle,
+        instructorName,
+        programDirectorName: course.instructor || instructorName,
+        issueDate,
+        serialNumber,
+        courseId,
+        studentEmail: certificate.studentEmail,
+      },
+      baseUrl,
+    );
+    certificate.certificateUrl = stored.url;
+    certificate.provider = stored.provider;
 
     await certificate.save();
 
@@ -220,8 +223,79 @@ async function listMyCertificates(req, res, next) {
 
     return res.json({
       success: true,
-      data: certificates.map((certificate) => certificate.toClient()),
+      data: certificates.map((certificate) => {
+        const client = certificate.toClient();
+        delete client.certificateUrl;
+        return client;
+      }),
     });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function safePdfFileName(courseTitle, studentName) {
+  const base = String(courseTitle || 'certificate')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return `${base || 'certificate'}-${String(studentName || 'student').replace(/\s+/g, '-')}.pdf`;
+}
+
+async function downloadCertificate(req, res, next) {
+  try {
+    const courseId = Number(req.params.courseId);
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'Course id is required.' });
+    }
+
+    const course = await Course.findOne({ id: courseId });
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found.' });
+    }
+
+    const role = String(req.user?.role || '').toLowerCase();
+    const requestedEmail = String(req.query.studentEmail || '').toLowerCase().trim();
+    const selfEmail = String(req.user.email || '').toLowerCase();
+    let student;
+
+    if (requestedEmail) {
+      if (requestedEmail === selfEmail) {
+        student = req.user;
+      } else if (role === 'admin' || (role === 'instructor' && ownsCourse(req.user, course))) {
+        student = await User.findOne({ email: requestedEmail, role: 'student' });
+        if (!student) {
+          return res.status(404).json({ success: false, message: 'Student not found.' });
+        }
+      } else {
+        return res.status(403).json({ success: false, message: 'You cannot download this certificate.' });
+      }
+    } else if (role === 'student') {
+      student = req.user;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Instructors and admins must pass studentEmail to download a certificate.',
+      });
+    }
+
+    const certificate = await Certificate.findOne({
+      course: course._id,
+      student: student._id,
+      certificateApproved: true,
+    });
+
+    if (!certificate) {
+      return res.status(404).json({ success: false, message: 'Certificate not available yet.' });
+    }
+
+    const pdfBuffer = await buildPdfBufferForCertificate(certificate);
+    const fileName = safePdfFileName(certificate.courseTitle || course.title, certificate.studentName);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    return res.send(pdfBuffer);
   } catch (error) {
     return next(error);
   }
@@ -229,6 +303,7 @@ async function listMyCertificates(req, res, next) {
 
 module.exports = {
   approveCertificate,
+  downloadCertificate,
   listInstructorOverview,
   listMyCertificates,
 };

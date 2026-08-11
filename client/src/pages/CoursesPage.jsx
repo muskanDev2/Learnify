@@ -544,7 +544,7 @@ function CoursesPage() {
     attachments: [],
     submissions: [],
   });
-  const [studentProgress, setStudentProgress] = useState(() => getStoredStudentProgress());
+  const [, setStudentProgress] = useState(() => getStoredStudentProgress());
   const [courseSyncMessage, setCourseSyncMessage] = useState('');
   const [moduleItemForm, setModuleItemForm] = useState({
     title: '',
@@ -1418,53 +1418,6 @@ function CoursesPage() {
     );
   }
 
-  function addQuizQuestion() {
-    setModuleItemForm((prev) => ({
-      ...prev,
-      quizQuestions: [...prev.quizQuestions, getDefaultQuizQuestion(prev.quizQuestions.length + 1)],
-    }));
-  }
-
-  function removeQuizQuestion(questionId) {
-    setModuleItemForm((prev) => {
-      const nextQuestions = prev.quizQuestions.filter((question) => question.id !== questionId);
-      return {
-        ...prev,
-        quizQuestions: nextQuestions.length ? nextQuestions : [getDefaultQuizQuestion(1)],
-      };
-    });
-  }
-
-  function updateQuizQuestionText(questionId, value) {
-    setModuleItemForm((prev) => ({
-      ...prev,
-      quizQuestions: prev.quizQuestions.map((question) =>
-        question.id === questionId ? { ...question, text: value } : question,
-      ),
-    }));
-  }
-
-  function updateQuizQuestionOption(questionId, optionIndex, value) {
-    setModuleItemForm((prev) => ({
-      ...prev,
-      quizQuestions: prev.quizQuestions.map((question) => {
-        if (question.id !== questionId) return question;
-        const nextOptions = [...question.options];
-        nextOptions[optionIndex] = value;
-        return { ...question, options: nextOptions };
-      }),
-    }));
-  }
-
-  function updateQuizQuestionAnswer(questionId, answerIndex) {
-    setModuleItemForm((prev) => ({
-      ...prev,
-      quizQuestions: prev.quizQuestions.map((question) =>
-        question.id === questionId ? { ...question, answer: Number(answerIndex) } : question,
-      ),
-    }));
-  }
-
   function addModuleItemLinkField() {
     setModuleItemForm((prev) => ({
       ...prev,
@@ -1656,10 +1609,6 @@ function CoursesPage() {
 
   function closePreviewFile() {
     setPreviewFile(null);
-  }
-
-  function openContentItem(item) {
-    return item;
   }
 
   function handleSearchResultClick(result) {

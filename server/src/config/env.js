@@ -28,6 +28,12 @@ function getEnv() {
       folder: process.env.CLOUDINARY_UPLOAD_FOLDER || 'learnify/lms',
       uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET || '',
     },
+    zoom: {
+      accountId: process.env.ZOOM_ACCOUNT_ID || '',
+      clientId: process.env.ZOOM_CLIENT_ID || '',
+      clientSecret: process.env.ZOOM_CLIENT_SECRET || '',
+      hostUserId: process.env.ZOOM_HOST_USER_ID || '',
+    },
   };
 }
 

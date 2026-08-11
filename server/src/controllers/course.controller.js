@@ -3,6 +3,7 @@ const Enrollment = require('../models/Enrollment');
 const LmsSnapshot = require('../models/LmsSnapshot');
 const { notifyAdmins, notifyCourseStudents } = require('../services/notification.service');
 const { sanitizeCourseModules, sanitizeCourses } = require('../utils/sanitizeCoursePayload');
+const { filterCourseModulesForStudent, isQuizPublished } = require('../utils/quizPublish');
 
 function buildStarterModules() {
   return [{ id: 1, title: 'General', items: [] }];
@@ -64,6 +65,29 @@ function getChangedAssignmentDeadlines(beforeCourse, afterCourse) {
     .filter(Boolean);
 }
 
+function getNewlyPublishedQuizzes(beforeCourse, afterCourse) {
+  const previousQuizzes = new Map(
+    flattenCourseItems(beforeCourse)
+      .filter((item) => item.type === 'quiz')
+      .map((item) => [getCourseItemKey(item), item]),
+  );
+
+  return flattenCourseItems(afterCourse).filter((item) => {
+    if (item.type !== 'quiz' || !isQuizPublished(item)) return false;
+    const previous = previousQuizzes.get(getCourseItemKey(item));
+    if (!previous) return false;
+    return !isQuizPublished(previous);
+  });
+}
+
+function toClientCourseForUser(course, user) {
+  const clientCourse = course.toClient();
+  if (!canManageCourse(user, course)) {
+    clientCourse.modules = filterCourseModulesForStudent(clientCourse.modules);
+  }
+  return clientCourse;
+}
+
 function formatDueDate(value) {
   if (!value) return 'no due date';
   const date = new Date(value);
@@ -123,7 +147,7 @@ async function listCourses(req, res, next) {
 
     return res.json({
       success: true,
-      data: courses.map((course) => course.toClient()),
+      data: courses.map((course) => toClientCourseForUser(course, req.user)),
     });
   } catch (error) {
     return next(error);
@@ -218,6 +242,9 @@ async function updateCourse(req, res, next) {
 
     const newItems = getNewCourseItems(course, updatedCourse);
     newItems.forEach((item) => {
+      if (item.type === 'quiz' && !isQuizPublished(item)) {
+        return;
+      }
       const notification = getNewItemNotification(item, updatedCourse);
       notifyCourseStudents(
         updatedCourse,
@@ -226,6 +253,21 @@ async function updateCourse(req, res, next) {
           relatedEntityId: item.id,
           courseId: updatedCourse.id,
           relatedEntityType: item.type || 'content',
+          actionUrl: buildCourseItemActionUrl(updatedCourse.id, item),
+        },
+        Enrollment,
+      ).catch(() => {});
+    });
+
+    getNewlyPublishedQuizzes(course, updatedCourse).forEach((item) => {
+      const notification = getNewItemNotification(item, updatedCourse);
+      notifyCourseStudents(
+        updatedCourse,
+        {
+          ...notification,
+          relatedEntityId: item.id,
+          courseId: updatedCourse.id,
+          relatedEntityType: item.type || 'quiz',
           actionUrl: buildCourseItemActionUrl(updatedCourse.id, item),
         },
         Enrollment,
@@ -251,7 +293,7 @@ async function updateCourse(req, res, next) {
     return res.json({
       success: true,
       message: 'Course updated successfully.',
-      data: updatedCourse.toClient(),
+      data: toClientCourseForUser(updatedCourse, req.user),
     });
   } catch (error) {
     return next(error);
@@ -336,7 +378,7 @@ async function updateStudentCourseWork(req, res, next) {
     return res.json({
       success: true,
       message: 'Student course work saved successfully.',
-      data: updatedCourse.toClient(),
+      data: toClientCourseForUser(updatedCourse, req.user),
     });
   } catch (error) {
     return next(error);

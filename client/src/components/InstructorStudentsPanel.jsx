@@ -7,7 +7,7 @@ import { fetchCourses } from '../utils/courseApi';
 import { fetchEnrollments } from '../utils/enrollmentApi';
 import { fetchProgress } from '../utils/progressApi';
 import { fetchStudents } from '../utils/userApi';
-import { approveCertificate, fetchInstructorCertificateOverview } from '../utils/certificateApi';
+import { approveCertificate, fetchInstructorCertificateOverview, downloadCertificatePdf } from '../utils/certificateApi';
 import { getCourseItemCount } from '../utils/dashboardStats';
 
 function getCompletedItemCount(progressMap, email, courseId) {
@@ -173,6 +173,23 @@ export default function InstructorStudentsPanel() {
     };
   }
 
+  async function handleViewCertificate(course, student) {
+    const key = overviewKey(course.id, student.email);
+    setProcessingKey(`dl-${key}`);
+    try {
+      await downloadCertificatePdf({
+        courseId: course.id,
+        studentEmail: String(student.email).toLowerCase(),
+        courseTitle: course.title,
+        studentName: student.name || student.email,
+      });
+    } catch (error) {
+      setToast({ message: error.message || 'Could not download certificate.', type: 'error' });
+    } finally {
+      setProcessingKey('');
+    }
+  }
+
   async function confirmApproval() {
     if (!pendingApproval) return;
     const { courseId, studentEmail, progressPercent } = pendingApproval;
@@ -327,16 +344,16 @@ export default function InstructorStudentsPanel() {
                                 {info.certificateApproved ? (
                                   <span className="certificateApprovedGroup">
                                     <span className="statusChip statusChipApproved">Approved</span>
-                                    {info.certificateUrl && (
-                                      <a
-                                        className="certificateLinkButton"
-                                        href={info.certificateUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        View
-                                      </a>
-                                    )}
+                                    <button
+                                      type="button"
+                                      className="certificateLinkButton"
+                                      disabled={processingKey === `dl-${overviewKey(course.id, student.email)}`}
+                                      onClick={() => handleViewCertificate(course, student)}
+                                    >
+                                      {processingKey === `dl-${overviewKey(course.id, student.email)}`
+                                        ? 'Loading…'
+                                        : 'Download'}
+                                    </button>
                                   </span>
                                 ) : (
                                   <button

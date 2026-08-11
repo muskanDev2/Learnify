@@ -82,6 +82,7 @@ certificateSchema.methods.toClient = function toClient() {
     courseId: this.courseId,
     studentName: this.studentName,
     courseTitle: this.courseTitle,
+    instructorName: this.instructorName,
     certificateApproved: this.certificateApproved,
     approvedAt: this.approvedAt || null,
     progressAtApproval: this.progressAtApproval,

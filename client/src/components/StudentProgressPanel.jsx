@@ -5,7 +5,7 @@ import { getCurrentUser } from '../utils/authUtils';
 import { fetchCourses } from '../utils/courseApi';
 import { fetchEnrollments } from '../utils/enrollmentApi';
 import { fetchProgress } from '../utils/progressApi';
-import { fetchMyCertificates } from '../utils/certificateApi';
+import { fetchMyCertificates, downloadCertificatePdf } from '../utils/certificateApi';
 import { getCourseItemCount, studentCompletionByCourse } from '../utils/dashboardStats';
 
 function getCourseItems(course) {
@@ -32,6 +32,8 @@ export default function StudentProgressPanel() {
   const [certificates, setCertificates] = useState([]);
   const [status, setStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [downloadBusyCourseId, setDownloadBusyCourseId] = useState(null);
+  const [downloadError, setDownloadError] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -91,6 +93,22 @@ export default function StudentProgressPanel() {
   const overallProgress = totalItems ? Math.round((completedItems / totalItems) * 100) : 0;
   const pendingItems = Math.max(0, totalItems - completedItems);
 
+  async function handleDownloadCertificate(certificate, course) {
+    setDownloadError('');
+    setDownloadBusyCourseId(course.id);
+    try {
+      await downloadCertificatePdf({
+        courseId: course.id,
+        courseTitle: certificate.courseTitle || course.title,
+        studentName: certificate.studentName || currentUser?.name,
+      });
+    } catch (error) {
+      setDownloadError(error.message || 'Could not download certificate.');
+    } finally {
+      setDownloadBusyCourseId(null);
+    }
+  }
+
   return (
     <SectionContainer
       title="My Progress"
@@ -105,6 +123,11 @@ export default function StudentProgressPanel() {
           {status === 'error' && (
             <div className="dashboardFeedback" role="alert">
               {errorMessage}
+            </div>
+          )}
+          {downloadError && (
+            <div className="dashboardFeedback" role="alert">
+              {downloadError}
             </div>
           )}
 
@@ -177,15 +200,14 @@ export default function StudentProgressPanel() {
                     {certificate ? (
                       <div className="studentCertificateRow studentCertificateRowReady">
                         <span>Certificate available</span>
-                        <a
+                        <button
+                          type="button"
                           className="certificateDownloadButton"
-                          href={certificate.certificateUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
+                          disabled={downloadBusyCourseId === course.id}
+                          onClick={() => handleDownloadCertificate(certificate, course)}
                         >
-                          Download Certificate
-                        </a>
+                          {downloadBusyCourseId === course.id ? 'Preparing…' : 'Download Certificate'}
+                        </button>
                       </div>
                     ) : pct >= 100 ? (
                       <div className="studentCertificateRow studentCertificateRowPending">

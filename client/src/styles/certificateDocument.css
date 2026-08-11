@@ -1,0 +1,480 @@
+/* Future Minds Certificate — HTML/CSS (mirrors server PDF template) */
+
+@page {
+  size: A4 landscape;
+  margin: 0;
+}
+
+:root {
+  --green-dark: #005344;
+  --green: #075f4e;
+  --green-text: #0b4037;
+  --red: #c5213d;
+  --gold: #c7a346;
+  --blue: #173e70;
+  --black: #101010;
+  --paper: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.certificate {
+  position: relative;
+  width: 297mm;
+  height: 210mm;
+  overflow: hidden;
+  background: var(--green-dark);
+  margin: 0 auto;
+}
+
+.outer-pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.corner {
+  position: absolute;
+  width: 24%;
+  height: 42%;
+}
+
+.corner span {
+  position: absolute;
+  display: block;
+}
+
+.corner-tl { top: -6%; left: -4%; }
+.corner-tr { top: -6%; right: -4%; }
+.corner-bl { bottom: -8%; left: -5%; height: 48%; }
+.corner-br { bottom: -8%; right: -5%; height: 48%; }
+
+.corner-tl span:nth-child(1) { width: 60%; height: 55%; background: #0c6a52; top: 4%;  left: 8%;  clip-path: polygon(0 0, 100% 0, 0 100%); }
+.corner-tl span:nth-child(2) { width: 42%; height: 42%; background: #d61f2f; top: -2%; left: 40%; clip-path: polygon(0 0, 100% 18%, 15% 100%); }
+.corner-tl span:nth-child(3) { width: 30%; height: 70%; background: #17579a; top: 14%; left: -4%; clip-path: polygon(0 0, 60% 0, 100% 100%, 0 100%); }
+
+.corner-tr span:nth-child(1) { width: 60%; height: 55%; background: #d61f2f; top: 2%;  right: 8%;  clip-path: polygon(100% 0, 100% 100%, 0 0); }
+.corner-tr span:nth-child(2) { width: 42%; height: 46%; background: #17579a; top: -2%; right: 38%; clip-path: polygon(0 0, 100% 0, 55% 100%); }
+.corner-tr span:nth-child(3) { width: 30%; height: 70%; background: #4a9e3e; top: 20%; right: -4%; clip-path: polygon(40% 0, 100% 0, 100% 100%, 0 100%); }
+
+.corner-bl span:nth-child(1) { width: 62%; height: 55%; background: #17579a; bottom: 4%;   left: 10%; clip-path: polygon(0 100%, 100% 100%, 0 0); }
+.corner-bl span:nth-child(2) { width: 50%; height: 50%; background: #ef6c21; bottom: 38%;  left: -2%; clip-path: polygon(0 0, 100% 38%, 25% 100%); }
+.corner-bl span:nth-child(3) { width: 44%; height: 42%; background: #df0878; bottom: -6%;  left: 42%; clip-path: polygon(0 100%, 100% 55%, 35% 0); }
+.corner-bl span:nth-child(4) { width: 34%; height: 34%; background: #f2b51d; bottom: -4%;  left: 78%; clip-path: polygon(0 100%, 100% 100%, 55% 0); }
+.corner-bl span:nth-child(5) { width: 30%; height: 70%; background: #0c6a52; bottom: 0;    left: -8%; clip-path: polygon(0 0, 60% 0, 100% 100%, 0 100%); }
+
+.corner-br span:nth-child(1) { width: 62%; height: 55%; background: #df0878; bottom: 2%;   right: 10%; clip-path: polygon(100% 100%, 0 100%, 100% 0); }
+.corner-br span:nth-child(2) { width: 50%; height: 50%; background: #ef6c21; bottom: 36%;  right: -2%; clip-path: polygon(100% 0, 0 38%, 70% 100%); }
+.corner-br span:nth-child(3) { width: 44%; height: 42%; background: #f2b51d; bottom: -6%;  right: 42%; clip-path: polygon(100% 100%, 0 55%, 60% 0); }
+.corner-br span:nth-child(4) { width: 34%; height: 34%; background: #4a9e3e; bottom: -4%;  right: 78%; clip-path: polygon(100% 100%, 0 100%, 40% 0); }
+.corner-br span:nth-child(5) { width: 30%; height: 70%; background: #17579a; bottom: 0;    right: -8%; clip-path: polygon(40% 0, 100% 0, 100% 100%, 0 100%); }
+
+.paper {
+  position: absolute;
+  left: 3.45%;
+  top: 4.7%;
+  width: 93.1%;
+  height: 90.6%;
+  background:
+    radial-gradient(circle at 20% 20%, transparent 0 11px, rgba(110,110,110,.045) 12px, transparent 13px),
+    radial-gradient(circle at 70% 65%, transparent 0 15px, rgba(110,110,110,.035) 16px, transparent 17px),
+    #fff;
+  background-size: 55px 55px, 75px 75px, auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+}
+
+.paper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: .42;
+  background-image:
+    repeating-radial-gradient(
+      circle at 10px 10px,
+      transparent 0,
+      transparent 8px,
+      rgba(110,110,110,.035) 9px,
+      transparent 11px,
+      transparent 22px
+    );
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+.logo {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.organizer-logo {
+  left: 5.5%;
+  top: 8.3%;
+  width: 22%;
+  height: 9%;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.organizer-mark {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #e21f2d, #f2b51d, #4a9e3e, #17579a, #df0878, #e21f2d);
+  position: relative;
+}
+
+.organizer-mark::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.organizer-text {
+  text-align: left;
+  line-height: 1.15;
+  font-size: 8px;
+}
+
+.organizer-text .name-1 {
+  color: #c5213d;
+  font-weight: 800;
+  font-size: 13px;
+  display: block;
+}
+
+.organizer-text .name-2 {
+  color: #0b4037;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .5px;
+  display: block;
+}
+
+.organizer-text .tagline {
+  color: #c5213d;
+  font-weight: 700;
+  font-size: 6.5px;
+  letter-spacing: .6px;
+  display: block;
+  margin-top: 1px;
+}
+
+.sdg-column {
+  position: absolute;
+  right: 2.5%;
+  top: 2.5%;
+  width: 6.7%;
+  height: 42%;
+  display: flex;
+  flex-direction: column;
+  z-index: 6;
+}
+
+.sdg {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  text-align: center;
+  font-weight: bold;
+  border-bottom: 2px solid white;
+  font-size: 8px;
+  line-height: 1.05;
+}
+
+.sdg strong {
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.sdg4 { background: #c91d35; }
+.sdg5 { background: #d51e32; }
+.sdg9 { background: #e05225; }
+.sdg13 { background: #3c8b4c; }
+
+.organized-by {
+  position: absolute;
+  left: 5.4%;
+  top: 5.2%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #111;
+  z-index: 7;
+}
+
+.summit-title {
+  position: absolute;
+  left: 39%;
+  top: 4%;
+  width: 22%;
+  text-align: center;
+  z-index: 7;
+  color: #064d3e;
+  font-weight: 900;
+  line-height: .84;
+  letter-spacing: -1.8px;
+}
+
+.summit-title .future,
+.summit-title .minds,
+.summit-title .summit {
+  font-size: 31px;
+}
+
+.summit-title .location {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: .1px;
+  color: #111;
+}
+
+.summit-title .minds {
+  position: relative;
+  display: inline-block;
+}
+
+.summit-arrow {
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  background: #77bb38;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.certificate-heading {
+  position: absolute;
+  left: 18%;
+  top: 24%;
+  width: 64%;
+  text-align: center;
+  z-index: 8;
+}
+
+.certificate-heading .script {
+  font-family: "Brush Script MT", "Segoe Script", "Snell Roundhand", cursive;
+  font-size: 72px;
+  line-height: .8;
+  color: var(--red);
+  font-weight: 400;
+  transform: scaleX(1.03);
+}
+
+.certificate-heading .participation {
+  margin-top: 11px;
+  font-size: 24px;
+  line-height: 1.05;
+  font-weight: 900;
+  color: #111;
+  letter-spacing: -.5px;
+}
+
+.presented-to {
+  position: absolute;
+  left: 20%;
+  top: 43.2%;
+  width: 60%;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111;
+  z-index: 8;
+}
+
+.student-name {
+  position: absolute;
+  left: 20%;
+  top: 46.1%;
+  width: 60%;
+  min-height: 42px;
+  padding: 2px 10px;
+  text-align: center;
+  z-index: 10;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 31px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #17483e;
+  border-bottom: 1px solid #c6a24d;
+}
+
+.body-copy {
+  position: absolute;
+  left: 18%;
+  top: 55%;
+  width: 64%;
+  text-align: center;
+  z-index: 8;
+  color: #151515;
+  font-size: 12.7px;
+  line-height: 1.45;
+}
+
+.body-copy p {
+  margin: 0 0 12px;
+}
+
+.certificate-instructor-line {
+  margin: 0 0 10px;
+  font-size: 12.7px;
+  font-weight: 700;
+  color: #151515;
+}
+
+.body-copy .green {
+  color: #0b5547;
+  font-weight: 800;
+}
+
+.body-copy .red {
+  color: #bd2338;
+  font-weight: 800;
+}
+
+.event-date {
+  margin-top: 9px;
+  color: #173d70;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: .3px;
+}
+
+.bottom {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 4%;
+  height: 13%;
+  z-index: 9;
+}
+
+.signature {
+  position: absolute;
+  bottom: 0;
+  width: 24%;
+  text-align: center;
+}
+
+.signature.left { left: 0; }
+.signature.right { right: 0; }
+
+.signature-line {
+  width: 100%;
+  border-top: 1px solid #b79a51;
+  margin-bottom: 5px;
+}
+
+.signature-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: #1d355b;
+}
+
+.signature-role {
+  margin-top: 3px;
+  font-size: 9px;
+  color: #b39751;
+}
+
+.bottom-logo {
+  position: absolute;
+  bottom: 6%;
+  width: 17%;
+  height: 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1;
+}
+
+.bottom-logo.left { left: 24%; align-items: flex-end; }
+.bottom-logo.right { right: 24%; align-items: flex-start; }
+
+.bottom-logo .sdg-word-top {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  color: #1d7fc4;
+}
+
+.bottom-logo .sdg-word-goals {
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.bottom-logo .sdg-word-goals span:nth-child(1) { color: #1d7fc4; }
+.bottom-logo .sdg-word-goals span:nth-child(2) { color: #f2b51d; }
+.bottom-logo .sdg-word-goals span:nth-child(3) { color: #e21f2d; }
+.bottom-logo .sdg-word-goals span:nth-child(4) { color: #4a9e3e; }
+.bottom-logo .sdg-word-goals span:nth-child(5) { color: #8dc63f; }
+
+.seal {
+  position: absolute;
+  left: 50%;
+  bottom: -8%;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: 7px double #b58a16;
+  background: radial-gradient(circle, #d8b63d 0 50%, #c89f27 51% 70%, #e1c45b 71%);
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #745b15;
+  font-size: 6.5px;
+  font-weight: bold;
+  line-height: 1.25;
+  padding: 6px;
+}
+
+.certificate-serial {
+  position: absolute;
+  left: 4%;
+  bottom: 1.2%;
+  z-index: 12;
+  font-size: 7px;
+  color: #78909c;
+  letter-spacing: 0.2px;
+}
+
+.certificatePreviewRoot {
+  margin: 0 auto;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+}
+
+.certificatePreviewPage {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background: #1b1b1b;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+@media screen and (max-width: 1100px) {
+  .certificatePreviewRoot.certificate {
+    width: 100%;
+    max-width: 297mm;
+    height: auto;
+    aspect-ratio: 297 / 210;
+  }
+}

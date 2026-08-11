@@ -173,6 +173,7 @@ async function recalculateCourseProgress(student, course) {
               studentName: certificate.studentName,
               courseTitle: certificate.courseTitle,
               instructorName,
+              programDirectorName: course.instructor || instructorName,
               issueDate,
               serialNumber,
               courseId: course.id,

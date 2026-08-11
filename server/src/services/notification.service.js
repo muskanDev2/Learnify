@@ -39,6 +39,7 @@ function getPreferenceKey(notificationType) {
   if (type.includes('announcement')) return 'announcements';
   if (type.includes('grade') || type.includes('feedback')) return 'grades';
   if (type.includes('material') || type.includes('content')) return 'courseMaterials';
+  if (type.includes('live_class')) return 'reminders';
   if (type.includes('due') || type.includes('deadline') || type.includes('overdue') || type.includes('quiz') || type.includes('exam')) {
     return 'reminders';
   }

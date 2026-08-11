@@ -20,9 +20,10 @@ export async function apiFetch(path, options = {}) {
         ...(options.headers || {}),
       },
     });
-  } catch (error) {
+  } catch (cause) {
     throw new Error(
       `Could not reach the Learnify API at ${API_BASE}. Make sure the backend server is running and MongoDB is connected.`,
+      { cause },
     );
   }
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   cancelLiveClass,
   createLiveClass,
@@ -162,7 +162,7 @@ function LiveClassCard({
   );
 }
 
-function CourseLiveClassesPanel({ courseId, course, currentUser, canManage }) {
+function CourseLiveClassesPanel({ courseId, course, canManage }) {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

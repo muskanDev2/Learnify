@@ -3,6 +3,7 @@ const Progress = require('../models/Progress');
 const User = require('../models/User');
 const { createNotification } = require('../services/notification.service');
 const { recalculateCourseProgress, resolveCourseById } = require('../utils/lmsProgress');
+const { isQuizPublished } = require('../utils/quizPublish');
 
 function canManageCourse(user, course) {
   const role = String(user.role || '').toLowerCase();
@@ -50,6 +51,10 @@ async function submitQuizAttempt(req, res, next) {
     const quiz = findQuiz(course, req.params.quizItemId);
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found.' });
+    }
+
+    if (!canManageCourse(req.user, course) && !isQuizPublished(quiz)) {
+      return res.status(403).json({ success: false, message: 'This quiz is not published yet.' });
     }
 
     const attemptCount = await QuizAttempt.countDocuments({
@@ -138,6 +143,15 @@ async function getMyQuizAttempts(req, res, next) {
     const course = await resolveCourseById(req.params.courseId);
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found.' });
+    }
+
+    const quiz = findQuiz(course, req.params.quizItemId);
+    if (!quiz) {
+      return res.status(404).json({ success: false, message: 'Quiz not found.' });
+    }
+
+    if (!canManageCourse(req.user, course) && !isQuizPublished(quiz)) {
+      return res.status(403).json({ success: false, message: 'This quiz is not published yet.' });
     }
 
     const attempts = await QuizAttempt.find({
