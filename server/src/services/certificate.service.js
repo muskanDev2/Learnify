@@ -1,9 +1,7 @@
 const path = require('path');
 
-// Must be set before puppeteer loads — Render's default $HOME cache is not reliable.
-const puppeteerCacheDir =
-  process.env.PUPPETEER_CACHE_DIR || path.join(process.cwd(), '.cache', 'puppeteer');
-process.env.PUPPETEER_CACHE_DIR = puppeteerCacheDir;
+// Ignore Render dashboard PUPPETEER_CACHE_DIR — puppeteer.config.cjs owns the cache path.
+delete process.env.PUPPETEER_CACHE_DIR;
 
 const fs = require('fs/promises');
 const puppeteer = require('puppeteer');

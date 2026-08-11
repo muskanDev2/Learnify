@@ -1,16 +1,12 @@
-const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const puppeteer = require('puppeteer');
+const { downloadBrowsers } = require('puppeteer/lib/cjs/puppeteer/node/install.js');
 
-const cacheDir =
-  process.env.PUPPETEER_CACHE_DIR || path.join(process.cwd(), '.cache', 'puppeteer');
-process.env.PUPPETEER_CACHE_DIR = path.isAbsolute(cacheDir)
-  ? cacheDir
-  : path.join(process.cwd(), cacheDir);
+const cacheDir = path.resolve(process.cwd(), '.cache', 'puppeteer');
 
-function resolveChromeExecutable() {
+function verifyChrome() {
   try {
-    const puppeteer = require('puppeteer');
     const executablePath = puppeteer.executablePath();
     return fs.existsSync(executablePath) ? executablePath : null;
   } catch {
@@ -18,29 +14,29 @@ function resolveChromeExecutable() {
   }
 }
 
-function removeCache() {
-  const target = path.join(process.cwd(), '.cache', 'puppeteer');
-  if (fs.existsSync(target)) {
-    console.log('Removing incomplete Puppeteer cache...');
-    fs.rmSync(target, { recursive: true, force: true });
+async function main() {
+  let executablePath = verifyChrome();
+
+  if (!executablePath) {
+    if (fs.existsSync(cacheDir)) {
+      console.log('Removing incomplete Puppeteer cache...');
+      fs.rmSync(cacheDir, { recursive: true, force: true });
+    }
+
+    console.log('Installing Chrome via Puppeteer (cache:', cacheDir, ')...');
+    await downloadBrowsers();
+    executablePath = verifyChrome();
   }
+
+  if (!executablePath) {
+    console.error('Puppeteer Chrome install failed: executable not found.');
+    process.exit(1);
+  }
+
+  console.log('Puppeteer Chrome ready.');
 }
 
-let executablePath = resolveChromeExecutable();
-
-if (!executablePath) {
-  removeCache();
-  console.log('Installing Chrome for Puppeteer...');
-  execSync('npx puppeteer browsers install chrome', {
-    stdio: 'inherit',
-    env: process.env,
-  });
-  executablePath = resolveChromeExecutable();
-}
-
-if (!executablePath) {
-  console.error('Puppeteer Chrome install failed: executable not found.');
+main().catch((error) => {
+  console.error('Puppeteer Chrome install failed:', error.message);
   process.exit(1);
-}
-
-console.log('Puppeteer Chrome ready.');
+});
