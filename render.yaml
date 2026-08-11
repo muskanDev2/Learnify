@@ -3,7 +3,7 @@ services:
     name: learnify-api
     runtime: node
     rootDir: server
-    buildCommand: npm install && npx puppeteer browsers install chrome
+    buildCommand: npm install && node scripts/install-puppeteer-chrome.js
     startCommand: node src/index.js
     healthCheckPath: /api/health
     envVars:
