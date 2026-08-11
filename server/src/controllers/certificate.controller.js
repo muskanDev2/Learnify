@@ -6,6 +6,7 @@ const User = require('../models/User');
 const { recalculateCourseProgress } = require('../utils/lmsProgress');
 const {
   buildPdfBufferForCertificate,
+  fetchStoredCertificatePdf,
   generateAndStoreCertificate,
 } = require('../services/certificate.service');
 const { createNotification } = require('../services/notification.service');
@@ -289,8 +290,15 @@ async function downloadCertificate(req, res, next) {
       return res.status(404).json({ success: false, message: 'Certificate not available yet.' });
     }
 
-    const pdfBuffer = await buildPdfBufferForCertificate(certificate);
     const fileName = safePdfFileName(certificate.courseTitle || course.title, certificate.studentName);
+
+    let pdfBuffer;
+    try {
+      pdfBuffer = await buildPdfBufferForCertificate(certificate);
+    } catch (pdfError) {
+      pdfBuffer = await fetchStoredCertificatePdf(certificate);
+      if (!pdfBuffer) throw pdfError;
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

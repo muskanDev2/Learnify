@@ -8,7 +8,7 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/project/src/server/.cache/puppeteer
+        value: .cache/puppeteer
       - key: NODE_ENV
         value: production
       - key: MONGO_URI

@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "seed:demo": "node src/utils/seedDemoData.js",
     "postinstall": "npx puppeteer browsers install chrome",
+    "prestart": "npx puppeteer browsers install chrome",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

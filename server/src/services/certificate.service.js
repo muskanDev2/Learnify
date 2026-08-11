@@ -1,5 +1,15 @@
-const fs = require('fs/promises');
 const path = require('path');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+
+const execFileAsync = promisify(execFile);
+
+// Must be set before puppeteer loads — Render's default $HOME cache is not reliable.
+const puppeteerCacheDir =
+  process.env.PUPPETEER_CACHE_DIR || path.join(process.cwd(), '.cache', 'puppeteer');
+process.env.PUPPETEER_CACHE_DIR = puppeteerCacheDir;
+
+const fs = require('fs/promises');
 const puppeteer = require('puppeteer');
 const { v2: cloudinary } = require('cloudinary');
 const { getEnv } = require('../config/env');
@@ -9,6 +19,7 @@ const { buildCertificateHtml } = require('../templates/certificateHtml');
 const certificatesDir = path.join(process.cwd(), 'uploads', 'certificates');
 
 let browserPromise = null;
+let chromeInstallPromise = null;
 
 const PUPPETEER_ARGS = [
   '--no-sandbox',
@@ -18,11 +29,35 @@ const PUPPETEER_ARGS = [
   '--font-render-hinting=none',
 ];
 
+async function ensureChromeInstalled() {
+  if (!chromeInstallPromise) {
+    chromeInstallPromise = (async () => {
+      try {
+        puppeteer.executablePath();
+        return;
+      } catch {
+        await fs.mkdir(puppeteerCacheDir, { recursive: true });
+        await execFileAsync('npx', ['puppeteer', 'browsers', 'install', 'chrome'], {
+          cwd: process.cwd(),
+          env: process.env,
+        });
+      }
+    })().catch((error) => {
+      chromeInstallPromise = null;
+      throw error;
+    });
+  }
+  return chromeInstallPromise;
+}
+
 async function getBrowser() {
+  await ensureChromeInstalled();
+
   if (!browserPromise) {
     browserPromise = puppeteer
       .launch({
         headless: true,
+        executablePath: puppeteer.executablePath(),
         args: PUPPETEER_ARGS,
       })
       .catch((error) => {
@@ -132,7 +167,21 @@ async function buildPdfBufferForCertificate(certificate) {
   return buildCertificatePdfBuffer(certificateToPdfData(certificate, course));
 }
 
+/** Serve stored Cloudinary PDF when live Puppeteer generation is unavailable. */
+async function fetchStoredCertificatePdf(certificate) {
+  if (certificate.provider !== 'cloudinary' || !certificate.certificateUrl) {
+    return null;
+  }
+
+  const response = await fetch(certificate.certificateUrl);
+  if (!response.ok) return null;
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return buffer.length > 0 ? buffer : null;
+}
+
 module.exports = {
   buildPdfBufferForCertificate,
+  fetchStoredCertificatePdf,
   generateAndStoreCertificate,
 };
