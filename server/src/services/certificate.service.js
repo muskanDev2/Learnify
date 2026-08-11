@@ -1,8 +1,4 @@
 const path = require('path');
-const { execFile } = require('child_process');
-const { promisify } = require('util');
-
-const execFileAsync = promisify(execFile);
 
 // Must be set before puppeteer loads — Render's default $HOME cache is not reliable.
 const puppeteerCacheDir =
@@ -34,13 +30,9 @@ async function ensureChromeInstalled() {
     chromeInstallPromise = (async () => {
       try {
         puppeteer.executablePath();
-        return;
-      } catch {
-        await fs.mkdir(puppeteerCacheDir, { recursive: true });
-        await execFileAsync('npx', ['puppeteer', 'browsers', 'install', 'chrome'], {
-          cwd: process.cwd(),
-          env: process.env,
-        });
+      } catch (error) {
+        chromeInstallPromise = null;
+        throw error;
       }
     })().catch((error) => {
       chromeInstallPromise = null;

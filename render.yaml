@@ -4,7 +4,7 @@ services:
     runtime: node
     rootDir: server
     buildCommand: npm install && npx puppeteer browsers install chrome
-    startCommand: npm start
+    startCommand: node src/index.js
     healthCheckPath: /api/health
     envVars:
       - key: PUPPETEER_CACHE_DIR
