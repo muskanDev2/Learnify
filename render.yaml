@@ -3,10 +3,12 @@ services:
     name: learnify-api
     runtime: node
     rootDir: server
-    buildCommand: npm install
+    buildCommand: npm install && npx puppeteer browsers install chrome
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
+      - key: PUPPETEER_CACHE_DIR
+        value: .cache/puppeteer
       - key: NODE_ENV
         value: production
       - key: MONGO_URI
