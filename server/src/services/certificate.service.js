@@ -10,12 +10,25 @@ const certificatesDir = path.join(process.cwd(), 'uploads', 'certificates');
 
 let browserPromise = null;
 
+const PUPPETEER_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--font-render-hinting=none',
+];
+
 async function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--font-render-hinting=none'],
-    });
+    browserPromise = puppeteer
+      .launch({
+        headless: true,
+        args: PUPPETEER_ARGS,
+      })
+      .catch((error) => {
+        browserPromise = null;
+        throw error;
+      });
   }
   return browserPromise;
 }
@@ -26,7 +39,7 @@ async function buildCertificatePdfBuffer(data) {
   const page = await browser.newPage();
 
   try {
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'load' });
     const pdf = await page.pdf({
       format: 'A4',
       landscape: true,
