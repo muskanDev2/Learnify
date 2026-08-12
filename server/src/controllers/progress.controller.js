@@ -35,8 +35,6 @@ async function migrateSnapshotProgressIfEmpty() {
 
 async function listProgress(req, res, next) {
   try {
-    await migrateSnapshotProgressIfEmpty();
-
     return res.json({
       success: true,
       data: await getProgressMap(),

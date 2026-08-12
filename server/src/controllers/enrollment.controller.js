@@ -1,6 +1,5 @@
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
-const LmsSnapshot = require('../models/LmsSnapshot');
 const User = require('../models/User');
 const { createNotification } = require('../services/notification.service');
 
@@ -49,8 +48,6 @@ async function migrateSnapshotEnrollmentsIfEmpty() {
 
 async function listEnrollments(req, res, next) {
   try {
-    await migrateSnapshotEnrollmentsIfEmpty();
-
     const activeStudentEmails = await getActiveStudentEmails();
     const enrollments = await Enrollment.find({ status: { $ne: 'dropped' } }).sort({ createdAt: -1 });
 

@@ -71,15 +71,14 @@ export async function loadLmsSnapshot() {
     progressResult.data && typeof progressResult.data === 'object' ? progressResult.data : {};
 
   if (!hasRemoteLmsData(remoteSnapshot) && hasLocalLmsData(localSnapshot)) {
-    await syncLmsSnapshotFromLocal();
-    const mergedLocalSnapshot = {
-      ...localSnapshot,
-      courses: apiCourses.length ? apiCourses : localSnapshot.courses,
+    // Server is empty — discard stale browser demo cache instead of re-uploading it.
+    const emptySnapshot = {
+      courses: apiCourses,
       enrollments: apiEnrollments,
       studentProgress: apiProgress,
     };
-    writeLocalLmsSnapshot(mergedLocalSnapshot);
-    return mergedLocalSnapshot;
+    writeLocalLmsSnapshot(emptySnapshot);
+    return emptySnapshot;
   }
 
   const mergedSnapshot = {

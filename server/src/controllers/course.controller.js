@@ -1,6 +1,5 @@
 const Course = require('../models/Course');
 const Enrollment = require('../models/Enrollment');
-const LmsSnapshot = require('../models/LmsSnapshot');
 const { notifyAdmins, notifyCourseStudents } = require('../services/notification.service');
 const { sanitizeCourseModules, sanitizeCourses } = require('../utils/sanitizeCoursePayload');
 const { filterCourseModulesForStudent, isQuizPublished } = require('../utils/quizPublish');
@@ -133,16 +132,6 @@ function getNewItemNotification(item, course) {
 
 async function listCourses(req, res, next) {
   try {
-    const courseCount = await Course.countDocuments();
-    if (courseCount === 0) {
-      const snapshot = await LmsSnapshot.findOne({ key: 'main' });
-      const snapshotCourses = Array.isArray(snapshot?.courses) ? snapshot.courses : [];
-
-      if (snapshotCourses.length > 0) {
-        await Course.insertMany(sanitizeCourses(snapshotCourses), { ordered: false });
-      }
-    }
-
     const courses = await Course.find().sort({ updatedAt: -1 });
 
     return res.json({
