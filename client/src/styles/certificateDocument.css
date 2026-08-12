@@ -118,7 +118,26 @@
   width: 22%;
   height: 9%;
   justify-content: flex-start;
-  gap: 8px;
+}
+
+.brand-logo {
+  display: block;
+}
+
+.gyn-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
+  mix-blend-mode: screen;
+}
+
+.fmst-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center top;
+  mix-blend-mode: screen;
 }
 
 .organizer-mark {
@@ -218,12 +237,9 @@
   left: 39%;
   top: 4%;
   width: 22%;
+  height: 10%;
   text-align: center;
   z-index: 7;
-  color: #064d3e;
-  font-weight: 900;
-  line-height: .84;
-  letter-spacing: -1.8px;
 }
 
 .summit-title .future,
@@ -375,6 +391,15 @@
   width: 100%;
   border-top: 1px solid #b79a51;
   margin-bottom: 5px;
+}
+
+.signature-image {
+  display: block;
+  width: auto;
+  max-width: 88%;
+  max-height: 42px;
+  margin: 0 auto 1px;
+  object-fit: contain;
 }
 
 .signature-name {

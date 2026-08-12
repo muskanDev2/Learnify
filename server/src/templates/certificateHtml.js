@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { getCertificateAssetUris } = require('./certificateAssets');
 
 const stylesPath = path.join(__dirname, 'certificateStyles.css');
 let cachedStyles = '';
@@ -46,6 +47,7 @@ function buildCertificateHtml(data) {
   const leftSignatureRole = 'Future Minds Summit Thailand 2026';
   const rightSignatureTitle = 'CHAIRPERSON';
   const rightSignatureRole = 'Global Youth Network';
+  const assets = getCertificateAssetUris();
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -64,19 +66,11 @@ function buildCertificateHtml(data) {
   </div>
   <div class="paper">
     <div class="logo organizer-logo">
-      <div class="organizer-mark"></div>
-      <div class="organizer-text">
-        <span class="name-1">Global Youth</span>
-        <span class="name-2">NETWORK</span>
-        <span class="tagline">EMPOWERING YOUTH</span>
-      </div>
+      <img class="brand-logo gyn-logo" src="${assets.gynLogo}" alt="Global Youth Network" />
     </div>
     <div class="organized-by">ORGANIZED BY:-</div>
     <div class="summit-title">
-      <div class="future">FUTURE</div>
-      <div class="minds"><span class="summit-arrow"></span>MINDS</div>
-      <div class="summit">SUMMIT</div>
-      <div class="location">BANGKOK THAILAND 2026</div>
+      <img class="brand-logo fmst-logo" src="${assets.fmstLogo}" alt="Future Minds Summit Bangkok Thailand 2026" />
     </div>
     <div class="sdg-column">
       <div class="sdg sdg4"><strong>4</strong>QUALITY<br>EDUCATION</div>
@@ -101,6 +95,7 @@ function buildCertificateHtml(data) {
     </div>
     <div class="bottom">
       <div class="signature left">
+        <img class="signature-image" src="${assets.signatureSaba}" alt="Saba signature" />
         <div class="signature-line"></div>
         <div class="signature-name">${leftSignatureTitle}</div>
         <div class="signature-role">${leftSignatureRole}</div>
@@ -112,6 +107,7 @@ function buildCertificateHtml(data) {
         <div class="sdg-word-goals"><span>G</span><span>O</span><span>A</span><span>L</span><span>S</span></div>
       </div>
       <div class="signature right">
+        <img class="signature-image" src="${assets.signatureShazil}" alt="Shazil signature" />
         <div class="signature-line"></div>
         <div class="signature-name">${rightSignatureTitle}</div>
         <div class="signature-role">${rightSignatureRole}</div>

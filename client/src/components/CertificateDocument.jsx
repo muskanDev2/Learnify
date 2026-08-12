@@ -1,5 +1,12 @@
 import '../styles/certificateDocument.css';
 
+const CERT_ASSETS = {
+  gynLogo: '/certificate-assets/gyn-logo.png',
+  fmstLogo: '/certificate-assets/fmst-logo.png',
+  signatureSaba: '/certificate-assets/signature-saba.png',
+  signatureShazil: '/certificate-assets/signature-shazil.png',
+};
+
 function formatCompletionDate(date) {
   const d = new Date(date || Date.now());
   if (Number.isNaN(d.getTime())) return '';
@@ -31,24 +38,17 @@ export default function CertificateDocument({
 
       <div className="paper">
         <div className="logo organizer-logo">
-          <div className="organizer-mark" />
-          <div className="organizer-text">
-            <span className="name-1">Global Youth</span>
-            <span className="name-2">NETWORK</span>
-            <span className="tagline">EMPOWERING YOUTH</span>
-          </div>
+          <img className="brand-logo gyn-logo" src={CERT_ASSETS.gynLogo} alt="Global Youth Network" />
         </div>
 
         <div className="organized-by">ORGANIZED BY:-</div>
 
         <div className="summit-title">
-          <div className="future">FUTURE</div>
-          <div className="minds">
-            <span className="summit-arrow" />
-            MINDS
-          </div>
-          <div className="summit">SUMMIT</div>
-          <div className="location">BANGKOK THAILAND 2026</div>
+          <img
+            className="brand-logo fmst-logo"
+            src={CERT_ASSETS.fmstLogo}
+            alt="Future Minds Summit Bangkok Thailand 2026"
+          />
         </div>
 
         <div className="sdg-column">
@@ -79,6 +79,7 @@ export default function CertificateDocument({
 
         <div className="bottom">
           <div className="signature left">
+            <img className="signature-image" src={CERT_ASSETS.signatureSaba} alt="Saba signature" />
             <div className="signature-line" />
             <div className="signature-name">PROGRAM DIRECTOR</div>
             <div className="signature-role">Future Minds Summit Thailand 2026</div>
@@ -103,6 +104,7 @@ export default function CertificateDocument({
           </div>
 
           <div className="signature right">
+            <img className="signature-image" src={CERT_ASSETS.signatureShazil} alt="Shazil signature" />
             <div className="signature-line" />
             <div className="signature-name">CHAIRPERSON</div>
             <div className="signature-role">Global Youth Network</div>
