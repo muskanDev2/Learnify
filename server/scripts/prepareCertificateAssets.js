@@ -39,7 +39,8 @@ async function copyAsset(fileName) {
 }
 
 async function main() {
-  for (const logo of ['gyn-logo.png', 'fmst-logo.png']) {
+  // Only GYN logo gets background removal. FMST logo must stay exactly as provided.
+  for (const logo of ['gyn-logo.png']) {
     const filePath = path.join(serverAssets, logo);
     const tempPath = `${filePath}.tmp.png`;
     await removeDarkBackground(filePath, tempPath);

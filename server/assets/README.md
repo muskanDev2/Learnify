@@ -1,10 +1,14 @@
-# Certificate PDF
+# Certificate assets
 
-Certificates are rendered from **HTML/CSS** (Future Minds design) via Puppeteer:
+Used by the HTML/Puppeteer certificate template (`src/templates/certificateHtml.js`).
 
-- `src/templates/certificateStyles.css` — layout and styling
-- `src/templates/certificateHtml.js` — builds the HTML document with dynamic fields
+| File | Purpose |
+|------|---------|
+| `gyn-logo.png` | Global Youth Network logo (top-left) |
+| `fmst-logo.png` | Future Minds Summit logo (top-center, original asset with background preserved) |
+| `signature-saba.png` | Program Director signature (Saba) |
+| `signature-shazil.png` | Chairperson signature (Shazil) |
 
-The React preview mirror lives in `client/src/components/CertificateDocument.jsx`.
+Mirrored in `client/public/certificate-assets/` for the React preview.
 
 Dynamic fields: `studentName`, `courseTitle`, `issueDate`, `instructorName`, `serialNumber`.
