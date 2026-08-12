@@ -173,6 +173,7 @@ export default function InstructorCoursesPanel() {
 
   function openCreateModal() {
     setEditingCourseId(null);
+    setStatusMessage('');
     setCourseForm({
       title: '',
       subtitle: '',
@@ -209,6 +210,7 @@ export default function InstructorCoursesPanel() {
       !courseForm.description.trim() ||
       !courseForm.category.trim()
     ) {
+      setStatusMessage('Title, subtitle, description, and category are required.');
       return;
     }
 
@@ -414,6 +416,7 @@ export default function InstructorCoursesPanel() {
           <div className="lightboxCard">
             <h3>{editingCourseId ? 'Edit course' : 'Create course'}</h3>
             <div className="authForm">
+              {statusMessage && <p className="errorText formError">{statusMessage}</p>}
               <label htmlFor="course-title">Course title</label>
               <input
                 id="course-title"

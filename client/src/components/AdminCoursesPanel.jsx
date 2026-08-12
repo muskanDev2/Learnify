@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchCourses } from '../utils/courseApi';
+import { createCourse as createCourseRequest, fetchCourses } from '../utils/courseApi';
 import { fetchEnrollments, manageEnrollment } from '../utils/enrollmentApi';
 import { fetchUsers } from '../utils/userApi';
+import { getCurrentUser } from '../utils/authUtils';
 
 export default function AdminCoursesPanel() {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('new'); // new | old | name
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [courseForm, setCourseForm] = useState({
+    title: '',
+    subtitle: '',
+    description: '',
+    category: '',
+    enrollmentKey: '',
+  });
 
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -59,6 +70,49 @@ export default function AdminCoursesPanel() {
     return (enrollments[student.email?.toLowerCase()] || []).includes(courseId);
   }
 
+  function openCreateModal() {
+    setCourseForm({
+      title: '',
+      subtitle: '',
+      description: '',
+      category: '',
+      enrollmentKey: '',
+    });
+    setStatusMessage('');
+    setIsModalOpen(true);
+  }
+
+  function handleFormChange(event) {
+    const { name, value } = event.target;
+    setCourseForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  async function handleSaveCourse() {
+    if (
+      !courseForm.title.trim() ||
+      !courseForm.subtitle.trim() ||
+      !courseForm.description.trim() ||
+      !courseForm.category.trim()
+    ) {
+      setStatusMessage('Title, subtitle, description, and category are required.');
+      return;
+    }
+
+    setIsSaving(true);
+    setStatusMessage('');
+
+    try {
+      const newCourse = await createCourseRequest(courseForm);
+      setCourses((prev) => [newCourse, ...prev]);
+      setIsModalOpen(false);
+      setStatusMessage(`${newCourse.title} created successfully.`);
+    } catch (error) {
+      setStatusMessage(error.message || 'Course could not be saved.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleEnrollmentToggle(course) {
     const student = getSelectedStudent(course.id);
     if (!student) return;
@@ -103,8 +157,15 @@ export default function AdminCoursesPanel() {
 
   return (
     <div className="dashboardPanel">
-      <h3>Courses</h3>
-      <p>All courses across the platform. Open any course for detailed editing.</p>
+      <div className="myCoursesHeader">
+        <div>
+          <h3>Courses</h3>
+          <p>All courses across the platform. Open any course for detailed editing.</p>
+        </div>
+        <button type="button" className="profilePrimaryButton" onClick={openCreateModal} disabled={isSaving}>
+          Create Course
+        </button>
+      </div>
       {statusMessage && <p className="dashboardFeedback">{statusMessage}</p>}
 
       <div className="myCoursesFilters">
@@ -206,6 +267,71 @@ export default function AdminCoursesPanel() {
           </div>
         )}
       </section>
+
+      {isModalOpen && (
+        <div className="lightboxOverlay" role="dialog" aria-modal="true">
+          <div className="lightboxCard">
+            <h3>Create course</h3>
+            <div className="authForm">
+              {statusMessage && <p className="errorText formError">{statusMessage}</p>}
+              <label htmlFor="admin-course-title">Course title</label>
+              <input
+                id="admin-course-title"
+                name="title"
+                value={courseForm.title}
+                onChange={handleFormChange}
+                autoComplete="off"
+              />
+              <label htmlFor="admin-course-subtitle">Term / subtitle</label>
+              <input
+                id="admin-course-subtitle"
+                name="subtitle"
+                value={courseForm.subtitle}
+                onChange={handleFormChange}
+                autoComplete="off"
+              />
+              <label htmlFor="admin-course-category">Category</label>
+              <input
+                id="admin-course-category"
+                name="category"
+                value={courseForm.category}
+                onChange={handleFormChange}
+                placeholder="AI, Robotics, Computer Science..."
+                autoComplete="off"
+              />
+              <label htmlFor="admin-course-description">Description</label>
+              <textarea
+                id="admin-course-description"
+                name="description"
+                value={courseForm.description}
+                onChange={handleFormChange}
+                rows={3}
+                placeholder="Write short course description..."
+                autoComplete="off"
+              />
+              <label htmlFor="admin-course-enrollment-key">Enrollment Key (optional)</label>
+              <input
+                id="admin-course-enrollment-key"
+                name="enrollmentKey"
+                value={courseForm.enrollmentKey}
+                onChange={handleFormChange}
+                placeholder="Set key to protect enrollment (leave blank for Public)"
+                autoComplete="off"
+              />
+              <label htmlFor="admin-course-instructor">Instructor</label>
+              <input id="admin-course-instructor" value={currentUser?.name || 'Admin'} readOnly autoComplete="off" />
+            </div>
+            <div className="profileModalActions">
+              <button type="button" className="profilePrimaryButton" onClick={handleSaveCourse} disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button type="button" className="heroButton heroButtonSecondary" onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
