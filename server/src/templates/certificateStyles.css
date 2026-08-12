@@ -142,7 +142,6 @@ body {
   height: 100%;
   object-fit: contain;
   object-position: left center;
-  mix-blend-mode: screen;
 }
 
 .fmst-logo {
@@ -150,7 +149,6 @@ body {
   height: 100%;
   object-fit: contain;
   object-position: center top;
-  mix-blend-mode: screen;
 }
 
 .organizer-mark {
@@ -418,6 +416,12 @@ body {
   max-height: 42px;
   margin: 0 auto 1px;
   object-fit: contain;
+}
+
+.signature.left .signature-image {
+  max-width: 95%;
+  max-height: 58px;
+  margin-bottom: 0;
 }
 
 .signature-name {
