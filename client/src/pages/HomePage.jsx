@@ -30,10 +30,7 @@ export default function HomePage() {
       <section id="about" className="infoSection">
         <h2>About Us</h2>
         <p>
-          Learnify is a simple and friendly learning platform where students can
-          explore courses, track progress, and stay engaged with structured
-          content. Our goal is to make digital learning clear, accessible, and
-          motivating for everyone.
+          The Global Youth Network (GYN) is a US based organization that will provide youth with an opportunity to connect with people from various backgrounds coming from different parts of the world. Through our international conferences and leadership programs we aim to target students, professionals’, innovators and community leaders in sharing their ideas and also to collaborate on global challenges via provided interactive forums. With our target focus on four SDGs (4, 5, 9 & 13), we hope to bring sustainable change through local communities to global outreach.
         </p>
       </section>
 
