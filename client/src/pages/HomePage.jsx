@@ -18,7 +18,7 @@ export default function HomePage() {
         </p>
       )}
       <section className="heroSection">
-        <p className="heroTag">Learning Management System</p>
+        <p className="heroTag">Learning Management System by Global Youth Network</p>
         <h1 className="heroTitle">Welcome to Learnify</h1>
         <p className="heroSubtitle">Engage, Evolve, Excel!</p>
         <div className="heroActions">
