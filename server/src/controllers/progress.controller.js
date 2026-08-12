@@ -1,37 +1,6 @@
-const LmsSnapshot = require('../models/LmsSnapshot');
 const Progress = require('../models/Progress');
 const CourseProgress = require('../models/CourseProgress');
 const { getProgressMap, recalculateCourseProgress, resolveCourseById } = require('../utils/lmsProgress');
-
-async function migrateSnapshotProgressIfEmpty() {
-  const count = await Progress.countDocuments();
-  if (count > 0) return;
-
-  const snapshot = await LmsSnapshot.findOne({ key: 'main' });
-  const snapshotProgress =
-    snapshot?.studentProgress && typeof snapshot.studentProgress === 'object'
-      ? snapshot.studentProgress
-      : {};
-
-  const docs = [];
-
-  Object.entries(snapshotProgress).forEach(([studentEmail, courses]) => {
-    Object.entries(courses || {}).forEach(([courseId, items]) => {
-      Object.entries(items || {}).forEach(([itemId, completed]) => {
-        docs.push({
-          studentEmail: String(studentEmail).toLowerCase(),
-          courseId: Number(courseId),
-          itemId: Number(itemId),
-          completed: Boolean(completed),
-        });
-      });
-    });
-  });
-
-  if (docs.length) {
-    await Progress.insertMany(docs, { ordered: false }).catch(() => {});
-  }
-}
 
 async function listProgress(req, res, next) {
   try {

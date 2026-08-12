@@ -24,28 +24,6 @@ function toEnrollmentMap(enrollments, activeStudentEmails = null) {
   }, {});
 }
 
-async function migrateSnapshotEnrollmentsIfEmpty() {
-  const count = await Enrollment.countDocuments();
-  if (count > 0) return;
-
-  const snapshot = await LmsSnapshot.findOne({ key: 'main' });
-  const snapshotEnrollments =
-    snapshot?.enrollments && typeof snapshot.enrollments === 'object' ? snapshot.enrollments : {};
-
-  const docs = Object.entries(snapshotEnrollments).flatMap(([studentEmail, courseIds]) =>
-    Array.isArray(courseIds)
-      ? courseIds.map((courseId) => ({
-          studentEmail: String(studentEmail).toLowerCase(),
-          courseId: Number(courseId),
-        }))
-      : [],
-  );
-
-  if (docs.length) {
-    await Enrollment.insertMany(docs, { ordered: false }).catch(() => {});
-  }
-}
-
 async function listEnrollments(req, res, next) {
   try {
     const activeStudentEmails = await getActiveStudentEmails();

@@ -9,6 +9,7 @@
     "reset:production": "node scripts/productionReset.js",
     "restore:production": "node scripts/productionRestore.js",
     "seed:temp-feature": "node scripts/seedTempFeatureData.js",
+    "remove:temp-feature": "node scripts/removeTempFeatureData.js",
     "install:chrome": "node scripts/install-puppeteer-chrome.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
