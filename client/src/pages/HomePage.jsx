@@ -36,9 +36,9 @@ export default function HomePage() {
 
       <section id="contact" className="infoSection contactSection">
         <h2>Contact</h2>
-        <p><strong>Phone:</strong> +123 456 7890</p>
-        <p><strong>Email:</strong> contact@learnify.com</p>
-        <p><strong>Address:</strong> 123 Learning Street, Knowledge City</p>
+        <p><strong>Phone:</strong> +1 (302) 556-0064</p>
+        <p><strong>Email:</strong> contact@thegyn.org</p>
+        <p><strong>Address:</strong> Kalispell, Montana, USA</p>
       </section>
     </>
   );
