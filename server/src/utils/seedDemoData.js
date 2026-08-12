@@ -9,7 +9,7 @@ const { connectDatabase } = require('../config/database');
 const { recalculateCourseProgress } = require('./lmsProgress');
 
 const today = new Date().toISOString().slice(0, 10);
-  //just to check the changes
+
 const demoUsers = [
   {
     name: 'Dr. Hina Siddiqui',
@@ -571,8 +571,6 @@ async function seedDemoData() {
   await mongoose.disconnect();
 }
 
-seedDemoData().catch(async (error) => {
-  console.error(error);
-  await mongoose.disconnect().catch(() => {});
-  process.exit(1);
-});
+module.exports = { seedDemoData };
+
+// Demo seed disabled — use scripts/productionReset.js for controlled production setup.

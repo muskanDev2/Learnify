@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "seed:demo": "node src/utils/seedDemoData.js",
+    "reset:production": "node scripts/productionReset.js",
+    "restore:production": "node scripts/productionRestore.js",
     "install:chrome": "node scripts/install-puppeteer-chrome.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

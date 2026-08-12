@@ -1,30 +1,28 @@
 const User = require('../models/User');
 
-const defaultAdmin = {
-  name: 'Learnify Admin',
-  email: 'admin@learnify.test',
-  password: 'Admin@123',
-  role: 'admin',
-  active: true,
-};
-
 async function seedAdminUser() {
+  const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD?.trim();
+  const name = process.env.SEED_ADMIN_NAME?.trim();
+
+  // No hardcoded demo admin — only seed when explicitly configured via env.
+  if (!email || !password || !name) return;
+
   const existingAdmin = await User.findOne({ role: 'admin' });
   if (existingAdmin) return;
 
-  const seedEmail = process.env.SEED_ADMIN_EMAIL || defaultAdmin.email;
-  const existingSeedUser = await User.findOne({ email: seedEmail.toLowerCase() });
+  const existingSeedUser = await User.findOne({ email });
   if (existingSeedUser) return;
 
   await User.create({
-    name: process.env.SEED_ADMIN_NAME || defaultAdmin.name,
-    email: seedEmail,
-    password: process.env.SEED_ADMIN_PASSWORD || defaultAdmin.password,
+    name,
+    email,
+    password,
     role: 'admin',
     active: true,
   });
 
-  console.log('Seed admin user created');
+  console.log('Seed admin user created from SEED_ADMIN_* env');
 }
 
 module.exports = { seedAdminUser };

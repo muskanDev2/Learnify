@@ -13,6 +13,8 @@ node_modules
 client/.env
 server/.env
 server/uploads/
+server/backups/
+server/.cache/
 dist
 dist-ssr
 *.local

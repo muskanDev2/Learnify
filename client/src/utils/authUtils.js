@@ -3,14 +3,6 @@ import { apiFetch } from './api';
 const USERS_KEY = 'learnify_users';
 const CURRENT_USER_KEY = 'learnify_current_user';
 const AUTH_TOKEN_KEY = 'learnify_auth_token';
-const TEST_ADMIN_USER = {
-  name: 'Learnify Admin',
-  email: 'admin@learnify.test',
-  password: 'Admin@123',
-  role: 'admin',
-  active: true,
-};
-
 export function getCurrentRole(user = getCurrentUser()) {
   return String(user?.role || '').toLowerCase();
 }
@@ -73,22 +65,7 @@ function setStoredUsers(users) {
 }
 
 function ensureAdminSeed(users) {
-  const safeUsers = normalizeUsersWithDefaultActive(Array.isArray(users) ? users : []);
-  const hasAdmin = safeUsers.some((user) => isAdmin(user));
-  if (hasAdmin) {
-    return safeUsers;
-  }
-
-  const seedEmailTaken = safeUsers.some(
-    (user) => (user.email || '').toLowerCase() === TEST_ADMIN_USER.email.toLowerCase(),
-  );
-  const seedUser = seedEmailTaken
-    ? { ...TEST_ADMIN_USER, email: 'admin-seed@learnify.test' }
-    : TEST_ADMIN_USER;
-
-  const nextUsers = [...safeUsers, seedUser];
-  setStoredUsers(nextUsers);
-  return nextUsers;
+  return normalizeUsersWithDefaultActive(Array.isArray(users) ? users : []);
 }
 
 function normalizeUsersWithDefaultActive(users) {
